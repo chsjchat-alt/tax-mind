@@ -47,9 +47,11 @@ async def wait_for_db(url: str, max_attempts: int = 60) -> None:
 asyncio.run(wait_for_db(os.environ["DATABASE_URL"]))
 PY
 
-    echo "运行数据库迁移..."
+    echo "创建数据库表结构（模型驱动 create_all，幂等）..."
+    # 说明：alembic 迁移链与当前 ORM 模型严重脱节（表/列/枚举名均过期），
+    # 改用 Base.metadata.create_all 与本地/测试链路保持一致，保证 schema 与模型完全同步。
     cd /app
-    alembic upgrade head
+    python -c "import asyncio; from app.database import init_db; asyncio.run(init_db())"
 
     echo "导入种子数据（幂等）..."
     python seed_multi_tenant.py
