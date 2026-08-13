@@ -17,7 +17,17 @@ import sys
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine
 
+
+def normalize_url(url: str) -> str:
+    """与 app/config.py 保持一致：postgresql:// → postgresql+asyncpg://
+    否则 SQLAlchemy 对同步前缀默认加载 psycopg2 方言 → ModuleNotFoundError"""
+    if url.startswith("postgresql://"):
+        return url.replace("postgresql://", "postgresql+asyncpg://", 1)
+    return url
+
+
 async def wait_for_db(url: str, max_attempts: int = 60) -> None:
+    url = normalize_url(url)
     engine = create_async_engine(url, pool_pre_ping=True)
     try:
         for attempt in range(1, max_attempts + 1):

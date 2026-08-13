@@ -32,5 +32,7 @@ email-validator>=2.1.0,<3.0.0
 fpdf2>=2.8.0,<3.0.0
 
 # ── PostgreSQL 驱动（生产环境） ──
-# asyncpg 已包含在 sqlalchemy[asyncio] 的依赖中
-# 如需 psycopg 同步驱动：psycopg2-binary>=2.9.9
+# asyncpg 异步驱动（主用，sqlalchemy[asyncio] 已包含）
+# psycopg2-binary 兜底：避免任何同步 postgresql:// 方言路径（如旧式 engine）
+# 触发 "No module named 'psycopg2'"（预编译 wheel，无需 libpq 编译）
+psycopg2-binary>=2.9.9
