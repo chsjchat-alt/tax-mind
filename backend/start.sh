@@ -47,11 +47,43 @@ async def wait_for_db(url: str, max_attempts: int = 60) -> None:
 asyncio.run(wait_for_db(os.environ["DATABASE_URL"]))
 PY
 
-    echo "创建数据库表结构（模型驱动 create_all，幂等）..."
-    # 说明：alembic 迁移链与当前 ORM 模型严重脱节（表/列/枚举名均过期），
-    # 改用 Base.metadata.create_all 与本地/测试链路保持一致，保证 schema 与模型完全同步。
+    echo "同步数据库表结构（模型驱动 create_all，幂等）..."
     cd /app
-    python -c "import asyncio; from app.database import init_db; asyncio.run(init_db())"
+    python - <<'PY'
+import asyncio
+
+from sqlalchemy import inspect
+
+import app.models  # noqa: F401 注册全部模型
+from app.database import Base, engine
+
+
+def _schema_fresh(sync_conn) -> bool:
+    """判断现有 schema 是否与 ORM 模型同步：
+    - 全新数据库（无 enterprises 表）→ 视为同步
+    - 旧 alembic 迁移残留表（uuid 主键、缺 industry_benchmark_id 等新列）→ 不同步"""
+    insp = inspect(sync_conn)
+    if "enterprises" not in insp.get_table_names():
+        return True
+    cols = {c["name"]: str(c["type"]) for c in insp.get_columns("enterprises")}
+    return cols.get("id") == "VARCHAR(36)" and "industry_benchmark_id" in cols
+
+
+async def main() -> None:
+    async with engine.connect() as conn:
+        fresh = await conn.run_sync(_schema_fresh)
+    if not fresh:
+        # 旧 alembic 迁移残留的过期 schema（uuid 主键等）与模型不兼容，
+        # 必须先重建，否则 create_all 会因 FK 类型不匹配失败。
+        print("检测到旧迁移残留 schema，重建全部表...")
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.drop_all)
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+
+asyncio.run(main())
+PY
 
     echo "导入种子数据（幂等）..."
     python seed_multi_tenant.py
