@@ -1,22 +1,54 @@
 #!/bin/bash
 set -e
 
-# 仅在 PostgreSQL 模式下等待数据库就绪
+# ══════════════════════════════════════════════════════════════════
+#  税智·心判 — 启动脚本（兼容 Docker Compose 与 Railway 单容器）
+#  1) PostgreSQL 模式：等待 DB 就绪 → alembic 迁移 → 导入种子数据
+#  2) SQLite 模式（开发）：跳过等待/迁移（应用启动时自动建表）
+# ══════════════════════════════════════════════════════════════════
+
 if echo "${DATABASE_URL}" | grep -q "postgresql"; then
-    DB_HOST="${DB_HOST:-postgres}"
-    DB_USER="${POSTGRES_USER:-taxmind}"
-    echo "等待 PostgreSQL 就绪 (host=$DB_HOST, user=$DB_USER)..."
-    while ! pg_isready -h "$DB_HOST" -U "$DB_USER" -q; do
-        sleep 1
-    done
-    echo "PostgreSQL 已就绪"
+    echo "等待 PostgreSQL 就绪..."
+    python - <<'PY'
+import asyncio
+import os
+import sys
+
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import create_async_engine
+
+async def wait_for_db(url: str, max_attempts: int = 60) -> None:
+    engine = create_async_engine(url, pool_pre_ping=True)
+    try:
+        for attempt in range(1, max_attempts + 1):
+            try:
+                async with engine.connect() as conn:
+                    await conn.execute(text("SELECT 1"))
+                print("PostgreSQL 已就绪")
+                return
+            except Exception as exc:  # noqa: BLE001 - 等待期异常需逐一吞掉重试
+                print(f"  等待中 ({attempt}/{max_attempts}): {type(exc).__name__}")
+                await asyncio.sleep(1)
+        print("ERROR: 数据库连接超时", file=sys.stderr)
+        sys.exit(1)
+    finally:
+        await engine.dispose()
+
+asyncio.run(wait_for_db(os.environ["DATABASE_URL"]))
+PY
 
     echo "运行数据库迁移..."
     cd /app
-    alembic upgrade head || echo "跳过迁移（尚未创建迁移脚本）"
+    alembic upgrade head
+
+    echo "导入种子数据（幂等）..."
+    python seed_multi_tenant.py
 else
-    echo "使用 SQLite 模式，跳过 PostgreSQL 等待和迁移..."
+    echo "使用 SQLite 模式，跳过 PostgreSQL 等待、迁移与种子导入..."
 fi
 
 echo "启动 FastAPI 服务..."
-uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+uvicorn app.main:app \
+    --host 0.0.0.0 \
+    --port "${PORT:-8000}" \
+    --workers "${WEB_CONCURRENCY:-1}"

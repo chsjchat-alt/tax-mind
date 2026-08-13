@@ -1,0 +1,38 @@
+# ── 版本控制 / IDE ──
+.git
+.gitignore
+.idea
+.vscode
+
+# ── 依赖与虚拟环境 ──
+**/node_modules
+**/venv
+**/.venv
+**/__pycache__
+**/*.pyc
+**/*.pyo
+
+# ── 构建产物与测试产物 ──
+frontend/dist
+frontend/coverage
+frontend/vitest-report.json
+frontend/vitest-summary.txt
+backend/htmlcov
+backend/.pytest_cache
+backend/.coverage
+
+# ── 数据与敏感文件 ──
+**/*.db
+**/*.sqlite3
+**/.env
+**/.env.*
+backend/.env
+
+# ── 大体积媒体 / 文档（无需进入镜像）──
+赛事要求
+AI协作日志.md
+TESTING.md
+README.md
+docker-compose.yml
+docker-compose.prod.yml
+.github

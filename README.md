@@ -51,9 +51,29 @@ python seed_multi_tenant.py
 # 5. 启动服务
 uvicorn app.main:app --reload --port 8000
 ```
-
 > 默认登录账户：`admin_t1` / `a123456`（租户A管理员）
 > 开发环境默认使用 SQLite，无需安装 PostgreSQL。
+
+### 方式三：Railway 单容器部署（推荐生产）
+
+项目根目录提供多阶段 `Dockerfile`（前端构建 + FastAPI 运行，前端静态产物由后端同域托管）。Railway 的 Railpack 无法解析 `docker-compose.yml`，因此必须使用 Dockerfile 部署：
+
+1. **创建数据库**：在 Railway 项目内添加 `PostgreSQL` 插件（或任意外部 Postgres）。
+2. **部署服务**：连接 GitHub 仓库 `tax-mind`，Railway 自动检测根目录 `Dockerfile` 并构建。
+3. **配置环境变量**（服务 Variables）：
+
+   | 变量 | 说明 |
+   |------|------|
+   | `DATABASE_URL` | 由 Postgres 插件提供，形如 `postgresql://user:pass@host:5432/db`（后端会自动转为 `+asyncpg`） |
+   | `JWT_SECRET_KEY` | 随机 32+ 位字符串，缺失则拒绝启动 |
+   | `ENCRYPTION_KEY` | Base64 编码的 32 字节密钥（AES-256-GCM），缺失则拒绝启动 |
+   | `DEBUG` | 建议 `false` |
+   | `LLM_PROVIDER` / `DEEPSEEK_API_KEY` / `QWEN_API_KEY` | 可选，用于合规导航等 AI 能力 |
+
+4. **启动流程**（内置 `start.sh` 自动执行）：等待数据库就绪 → `alembic upgrade head` 迁移 → 幂等导入种子数据 → 启动 uvicorn（监听 Railway 注入的 `PORT`）。
+5. **默认账号**：`admin_t1` / `a123456`。
+
+> 域名由 Railway 自动分配（`*.up.railway.app`），如绑定自定义域名无需额外配置，前后端同域部署。
 
 **前端：**
 

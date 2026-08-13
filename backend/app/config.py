@@ -81,3 +81,11 @@ def _validate_settings(settings: Settings) -> None:
             f"缺少必要的环境变量，服务拒绝启动: {', '.join(missing)}。"
             f"请在 .env 文件或环境变量中设置。"
         )
+
+    # ── URL 归一化：托管平台（Railway/Render/Neon 等）默认给出
+    #    postgresql://（同步驱动前缀），而本项目引擎使用 asyncpg，
+    #    统一转换为 postgresql+asyncpg://，避免 create_async_engine 报错。
+    if settings.database_url.startswith("postgresql://"):
+        settings.database_url = settings.database_url.replace(
+            "postgresql://", "postgresql+asyncpg://", 1
+        )

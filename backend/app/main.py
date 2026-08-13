@@ -5,10 +5,12 @@ import asyncio
 import json
 import time
 import logging
+from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, StreamingResponse, HTMLResponse
+from fastapi.responses import JSONResponse, StreamingResponse, HTMLResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 
 from app.config import get_settings
 from app.utils.response import success_response, error_response
@@ -17,6 +19,9 @@ from app.core.security import decode_token
 from app.core.security_headers import apply_security_headers
 
 settings = get_settings()
+
+# React 构建产物目录（仅单容器 / Railway 部署时存在）
+_FRONTEND_DIST = Path(__file__).resolve().parent.parent / "frontend" / "dist"
 
 # 配置日志
 logging.basicConfig(level=logging.INFO)
@@ -178,9 +183,12 @@ async def health_check():
     return success_response({"status": "ok", "version": settings.app_version})
 
 
-# 根路径欢迎页
+# 根路径欢迎页（单容器部署时返回 React 前端，否则返回静态欢迎页）
 @app.get("/")
 async def root():
+    index_file = _FRONTEND_DIST / "index.html"
+    if index_file.exists():
+        return FileResponse(index_file)
     return HTMLResponse(f"""<!DOCTYPE html>
 <html lang="zh-CN">
 <head><meta charset="UTF-8"><title>{settings.app_name}</title></head>
@@ -200,6 +208,44 @@ async def root():
 from app.api import api_router
 
 app.include_router(api_router, prefix="/api/v1")
+
+
+# ── 前端静态托管（单容器 / Railway 部署）──────────────
+# 仅在 React 构建产物（frontend/dist）存在时启用；
+# 开发环境由 Vite 提供前端、compose 部署由 Nginx 提供，均不受影响。
+if _FRONTEND_DIST.is_dir():
+    _assets_dir = _FRONTEND_DIST / "assets"
+    if _assets_dir.is_dir():
+        app.mount(
+            "/assets",
+            StaticFiles(directory=_assets_dir),
+            name="frontend-assets",
+        )
+
+    @app.exception_handler(404)
+    async def _spa_fallback(request: Request, exc: Exception):
+        """React Router SPA fallback：非 API 路径统一返回 index.html"""
+        # API/文档/系统路径保持标准 404，避免被前端路由吞掉
+        path = request.url.path
+        if (
+            path.startswith("/api")
+            or path.startswith("/docs")
+            or path.startswith("/redoc")
+            or path.startswith("/openapi.json")
+            or path == "/favicon.ico"
+            or path == "/health"
+        ):
+            return JSONResponse(
+                status_code=404,
+                content=error_response(40400, "资源不存在"),
+            )
+        index_file = _FRONTEND_DIST / "index.html"
+        if index_file.exists():
+            return FileResponse(index_file)
+        return JSONResponse(
+            status_code=404,
+            content=error_response(40400, "资源不存在"),
+        )
 
 
 

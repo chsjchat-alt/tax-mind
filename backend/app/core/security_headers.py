@@ -14,10 +14,13 @@ from app.config import get_settings
 
 
 # ── 生产环境 CSP（严格） ────────────────────────────────────
+# 注意：style-src 保留 'unsafe-inline'——Ant Design 5 采用 CSS-in-JS
+# 运行时注入 <style> 标签，SPA 场景无法抽取，不放开会白屏。
+# script-src 保持严格（'unsafe-inline' 才是 XSS 主要突破口）。
 _CSP_PRODUCTION = (
     "default-src 'self'; "
     "script-src 'self' cdn.jsdelivr.net; "
-    "style-src 'self' cdn.jsdelivr.net fonts.googleapis.com; "
+    "style-src 'self' 'unsafe-inline' cdn.jsdelivr.net fonts.googleapis.com; "
     "img-src 'self' data:; "
     "font-src 'self' fonts.gstatic.com; "
     "connect-src 'self'; "

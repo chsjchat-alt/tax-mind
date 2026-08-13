@@ -21,6 +21,7 @@ frontend/coverage/
 frontend/dist/
 frontend/vitest-report.json
 frontend/vitest-summary.txt
+*.tsbuildinfo
 
 # 后端生成物
 backend/htmlcov/
