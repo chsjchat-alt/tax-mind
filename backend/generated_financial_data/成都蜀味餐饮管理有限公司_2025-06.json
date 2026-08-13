@@ -1,0 +1,1940 @@
+{
+  "enterprise_type": "E",
+  "enterprise_name": "成都蜀味餐饮管理有限公司",
+  "monthly_vouchers": [
+    {
+      "voucher_no": "记-2025-06-001",
+      "voucher_date": "2025-06-04",
+      "voucher_type": "receipt",
+      "description": "销售商品给美团外卖平台",
+      "attachment_count": 4,
+      "entries": [
+        {
+          "direction": "debit",
+          "account_code": "1002",
+          "account_name": "银行存款",
+          "amount": 40176.61
+        },
+        {
+          "direction": "credit",
+          "account_code": "6001",
+          "account_name": "主营业务收入",
+          "amount": 39778.82,
+          "auxiliary": {
+            "customer": "美团外卖平台"
+          }
+        },
+        {
+          "direction": "credit",
+          "account_code": "222101",
+          "account_name": "应交增值税",
+          "amount": 397.79
+        }
+      ],
+      "is_posted": true
+    },
+    {
+      "voucher_no": "记-2025-06-002",
+      "voucher_date": "2025-06-25",
+      "voucher_type": "transfer",
+      "description": "确认对美团外卖平台的应收账款",
+      "attachment_count": 3,
+      "entries": [
+        {
+          "direction": "debit",
+          "account_code": "1122",
+          "account_name": "应收账款",
+          "amount": 16989.25
+        },
+        {
+          "direction": "credit",
+          "account_code": "6001",
+          "account_name": "主营业务收入",
+          "amount": 16821.04
+        },
+        {
+          "direction": "credit",
+          "account_code": "222101",
+          "account_name": "应交增值税",
+          "amount": 168.21
+        }
+      ],
+      "is_posted": true
+    },
+    {
+      "voucher_no": "记-2025-06-003",
+      "voucher_date": "2025-06-09",
+      "voucher_type": "receipt",
+      "description": "销售商品给企业团餐客户",
+      "attachment_count": 5,
+      "entries": [
+        {
+          "direction": "debit",
+          "account_code": "1002",
+          "account_name": "银行存款",
+          "amount": 37428.99
+        },
+        {
+          "direction": "credit",
+          "account_code": "6001",
+          "account_name": "主营业务收入",
+          "amount": 37058.41,
+          "auxiliary": {
+            "customer": "企业团餐客户"
+          }
+        },
+        {
+          "direction": "credit",
+          "account_code": "222101",
+          "account_name": "应交增值税",
+          "amount": 370.58
+        }
+      ],
+      "is_posted": true
+    },
+    {
+      "voucher_no": "记-2025-06-004",
+      "voucher_date": "2025-06-08",
+      "voucher_type": "receipt",
+      "description": "销售商品给饿了么外卖平台",
+      "attachment_count": 6,
+      "entries": [
+        {
+          "direction": "debit",
+          "account_code": "1002",
+          "account_name": "银行存款",
+          "amount": 56115.54
+        },
+        {
+          "direction": "credit",
+          "account_code": "6001",
+          "account_name": "主营业务收入",
+          "amount": 55559.94,
+          "auxiliary": {
+            "customer": "饿了么外卖平台"
+          }
+        },
+        {
+          "direction": "credit",
+          "account_code": "222101",
+          "account_name": "应交增值税",
+          "amount": 555.6
+        }
+      ],
+      "is_posted": true
+    },
+    {
+      "voucher_no": "记-2025-06-005",
+      "voucher_date": "2025-06-18",
+      "voucher_type": "transfer",
+      "description": "确认对饿了么外卖平台的应收账款",
+      "attachment_count": 3,
+      "entries": [
+        {
+          "direction": "debit",
+          "account_code": "1122",
+          "account_name": "应收账款",
+          "amount": 11461.29
+        },
+        {
+          "direction": "credit",
+          "account_code": "6001",
+          "account_name": "主营业务收入",
+          "amount": 11347.81
+        },
+        {
+          "direction": "credit",
+          "account_code": "222101",
+          "account_name": "应交增值税",
+          "amount": 113.48
+        }
+      ],
+      "is_posted": true
+    },
+    {
+      "voucher_no": "记-2025-06-006",
+      "voucher_date": "2025-06-18",
+      "voucher_type": "receipt",
+      "description": "销售商品给散客（堂食）",
+      "attachment_count": 5,
+      "entries": [
+        {
+          "direction": "debit",
+          "account_code": "1002",
+          "account_name": "银行存款",
+          "amount": 39548.01
+        },
+        {
+          "direction": "credit",
+          "account_code": "6001",
+          "account_name": "主营业务收入",
+          "amount": 39156.45,
+          "auxiliary": {
+            "customer": "散客（堂食）"
+          }
+        },
+        {
+          "direction": "credit",
+          "account_code": "222101",
+          "account_name": "应交增值税",
+          "amount": 391.56
+        }
+      ],
+      "is_posted": true
+    },
+    {
+      "voucher_no": "记-2025-06-007",
+      "voucher_date": "2025-06-04",
+      "voucher_type": "receipt",
+      "description": "销售商品给企业团餐客户",
+      "attachment_count": 1,
+      "entries": [
+        {
+          "direction": "debit",
+          "account_code": "1002",
+          "account_name": "银行存款",
+          "amount": 36085.89
+        },
+        {
+          "direction": "credit",
+          "account_code": "6001",
+          "account_name": "主营业务收入",
+          "amount": 35728.6,
+          "auxiliary": {
+            "customer": "企业团餐客户"
+          }
+        },
+        {
+          "direction": "credit",
+          "account_code": "222101",
+          "account_name": "应交增值税",
+          "amount": 357.29
+        }
+      ],
+      "is_posted": true
+    },
+    {
+      "voucher_no": "记-2025-06-008",
+      "voucher_date": "2025-06-11",
+      "voucher_type": "receipt",
+      "description": "销售商品给企业团餐客户",
+      "attachment_count": 3,
+      "entries": [
+        {
+          "direction": "debit",
+          "account_code": "1002",
+          "account_name": "银行存款",
+          "amount": 47124.93
+        },
+        {
+          "direction": "credit",
+          "account_code": "6001",
+          "account_name": "主营业务收入",
+          "amount": 46658.35,
+          "auxiliary": {
+            "customer": "企业团餐客户"
+          }
+        },
+        {
+          "direction": "credit",
+          "account_code": "222101",
+          "account_name": "应交增值税",
+          "amount": 466.58
+        }
+      ],
+      "is_posted": true
+    },
+    {
+      "voucher_no": "记-2025-06-009",
+      "voucher_date": "2025-06-04",
+      "voucher_type": "receipt",
+      "description": "销售商品给企业团餐客户",
+      "attachment_count": 2,
+      "entries": [
+        {
+          "direction": "debit",
+          "account_code": "1002",
+          "account_name": "银行存款",
+          "amount": 41001.94
+        },
+        {
+          "direction": "credit",
+          "account_code": "6001",
+          "account_name": "主营业务收入",
+          "amount": 40595.98,
+          "auxiliary": {
+            "customer": "企业团餐客户"
+          }
+        },
+        {
+          "direction": "credit",
+          "account_code": "222101",
+          "account_name": "应交增值税",
+          "amount": 405.96
+        }
+      ],
+      "is_posted": true
+    },
+    {
+      "voucher_no": "记-2025-06-010",
+      "voucher_date": "2025-06-05",
+      "voucher_type": "receipt",
+      "description": "销售商品给散客（堂食）",
+      "attachment_count": 3,
+      "entries": [
+        {
+          "direction": "debit",
+          "account_code": "1002",
+          "account_name": "银行存款",
+          "amount": 36912.49
+        },
+        {
+          "direction": "credit",
+          "account_code": "6001",
+          "account_name": "主营业务收入",
+          "amount": 36547.02,
+          "auxiliary": {
+            "customer": "散客（堂食）"
+          }
+        },
+        {
+          "direction": "credit",
+          "account_code": "222101",
+          "account_name": "应交增值税",
+          "amount": 365.47
+        }
+      ],
+      "is_posted": true
+    },
+    {
+      "voucher_no": "记-2025-06-011",
+      "voucher_date": "2025-06-08",
+      "voucher_type": "receipt",
+      "description": "销售商品给散客（堂食）",
+      "attachment_count": 2,
+      "entries": [
+        {
+          "direction": "debit",
+          "account_code": "1002",
+          "account_name": "银行存款",
+          "amount": 66966.61
+        },
+        {
+          "direction": "credit",
+          "account_code": "6001",
+          "account_name": "主营业务收入",
+          "amount": 66303.57,
+          "auxiliary": {
+            "customer": "散客（堂食）"
+          }
+        },
+        {
+          "direction": "credit",
+          "account_code": "222101",
+          "account_name": "应交增值税",
+          "amount": 663.04
+        }
+      ],
+      "is_posted": true
+    },
+    {
+      "voucher_no": "记-2025-06-012",
+      "voucher_date": "2025-06-25",
+      "voucher_type": "receipt",
+      "description": "销售商品给美团外卖平台",
+      "attachment_count": 7,
+      "entries": [
+        {
+          "direction": "debit",
+          "account_code": "1002",
+          "account_name": "银行存款",
+          "amount": 45598.16
+        },
+        {
+          "direction": "credit",
+          "account_code": "6001",
+          "account_name": "主营业务收入",
+          "amount": 45146.69,
+          "auxiliary": {
+            "customer": "美团外卖平台"
+          }
+        },
+        {
+          "direction": "credit",
+          "account_code": "222101",
+          "account_name": "应交增值税",
+          "amount": 451.47
+        }
+      ],
+      "is_posted": true
+    },
+    {
+      "voucher_no": "记-2025-06-013",
+      "voucher_date": "2025-06-10",
+      "voucher_type": "receipt",
+      "description": "销售商品给企业团餐客户",
+      "attachment_count": 1,
+      "entries": [
+        {
+          "direction": "debit",
+          "account_code": "1002",
+          "account_name": "银行存款",
+          "amount": 47528.84
+        },
+        {
+          "direction": "credit",
+          "account_code": "6001",
+          "account_name": "主营业务收入",
+          "amount": 47058.26,
+          "auxiliary": {
+            "customer": "企业团餐客户"
+          }
+        },
+        {
+          "direction": "credit",
+          "account_code": "222101",
+          "account_name": "应交增值税",
+          "amount": 470.58
+        }
+      ],
+      "is_posted": true
+    },
+    {
+      "voucher_no": "记-2025-06-014",
+      "voucher_date": "2025-06-21",
+      "voucher_type": "receipt",
+      "description": "销售商品给美团外卖平台",
+      "attachment_count": 4,
+      "entries": [
+        {
+          "direction": "debit",
+          "account_code": "1002",
+          "account_name": "银行存款",
+          "amount": 50911.99
+        },
+        {
+          "direction": "credit",
+          "account_code": "6001",
+          "account_name": "主营业务收入",
+          "amount": 50407.91,
+          "auxiliary": {
+            "customer": "美团外卖平台"
+          }
+        },
+        {
+          "direction": "credit",
+          "account_code": "222101",
+          "account_name": "应交增值税",
+          "amount": 504.08
+        }
+      ],
+      "is_posted": true
+    },
+    {
+      "voucher_no": "记-2025-06-015",
+      "voucher_date": "2025-06-08",
+      "voucher_type": "transfer",
+      "description": "确认对美团外卖平台的应收账款",
+      "attachment_count": 3,
+      "entries": [
+        {
+          "direction": "debit",
+          "account_code": "1122",
+          "account_name": "应收账款",
+          "amount": 11422.42
+        },
+        {
+          "direction": "credit",
+          "account_code": "6001",
+          "account_name": "主营业务收入",
+          "amount": 11309.33
+        },
+        {
+          "direction": "credit",
+          "account_code": "222101",
+          "account_name": "应交增值税",
+          "amount": 113.09
+        }
+      ],
+      "is_posted": true
+    },
+    {
+      "voucher_no": "记-2025-06-016",
+      "voucher_date": "2025-06-23",
+      "voucher_type": "payment",
+      "description": "向成都农产品批发市场有限公司采购货物",
+      "attachment_count": 8,
+      "entries": [
+        {
+          "direction": "debit",
+          "account_code": "1405",
+          "account_name": "库存商品",
+          "amount": 13673.22
+        },
+        {
+          "direction": "debit",
+          "account_code": "222101",
+          "account_name": "应交增值税",
+          "amount": 136.73
+        },
+        {
+          "direction": "credit",
+          "account_code": "1002",
+          "account_name": "银行存款",
+          "amount": 13809.95
+        }
+      ],
+      "is_posted": true
+    },
+    {
+      "voucher_no": "记-2025-06-017",
+      "voucher_date": "2025-06-02",
+      "voucher_type": "payment",
+      "description": "向四川调味品供应链有限公司采购货物",
+      "attachment_count": 4,
+      "entries": [
+        {
+          "direction": "debit",
+          "account_code": "1405",
+          "account_name": "库存商品",
+          "amount": 14212.38
+        },
+        {
+          "direction": "debit",
+          "account_code": "222101",
+          "account_name": "应交增值税",
+          "amount": 142.12
+        },
+        {
+          "direction": "credit",
+          "account_code": "1002",
+          "account_name": "银行存款",
+          "amount": 14354.5
+        }
+      ],
+      "is_posted": true
+    },
+    {
+      "voucher_no": "记-2025-06-018",
+      "voucher_date": "2025-06-15",
+      "voucher_type": "payment",
+      "description": "向四川调味品供应链有限公司采购货物",
+      "attachment_count": 2,
+      "entries": [
+        {
+          "direction": "debit",
+          "account_code": "1405",
+          "account_name": "库存商品",
+          "amount": 11813.19
+        },
+        {
+          "direction": "debit",
+          "account_code": "222101",
+          "account_name": "应交增值税",
+          "amount": 118.13
+        },
+        {
+          "direction": "credit",
+          "account_code": "1002",
+          "account_name": "银行存款",
+          "amount": 11931.32
+        }
+      ],
+      "is_posted": true
+    },
+    {
+      "voucher_no": "记-2025-06-019",
+      "voucher_date": "2025-06-08",
+      "voucher_type": "payment",
+      "description": "向成都酒水饮料批发有限公司采购货物",
+      "attachment_count": 5,
+      "entries": [
+        {
+          "direction": "debit",
+          "account_code": "1405",
+          "account_name": "库存商品",
+          "amount": 9762.07
+        },
+        {
+          "direction": "debit",
+          "account_code": "222101",
+          "account_name": "应交增值税",
+          "amount": 97.62
+        },
+        {
+          "direction": "credit",
+          "account_code": "1002",
+          "account_name": "银行存款",
+          "amount": 9859.69
+        }
+      ],
+      "is_posted": true
+    },
+    {
+      "voucher_no": "记-2025-06-020",
+      "voucher_date": "2025-06-07",
+      "voucher_type": "payment",
+      "description": "向成都酒水饮料批发有限公司采购货物",
+      "attachment_count": 7,
+      "entries": [
+        {
+          "direction": "debit",
+          "account_code": "1405",
+          "account_name": "库存商品",
+          "amount": 9717.07
+        },
+        {
+          "direction": "debit",
+          "account_code": "222101",
+          "account_name": "应交增值税",
+          "amount": 97.17
+        },
+        {
+          "direction": "credit",
+          "account_code": "1002",
+          "account_name": "银行存款",
+          "amount": 9814.24
+        }
+      ],
+      "is_posted": true
+    },
+    {
+      "voucher_no": "记-2025-06-021",
+      "voucher_date": "2025-06-18",
+      "voucher_type": "payment",
+      "description": "向成都农产品批发市场有限公司采购货物",
+      "attachment_count": 4,
+      "entries": [
+        {
+          "direction": "debit",
+          "account_code": "1405",
+          "account_name": "库存商品",
+          "amount": 10775.78
+        },
+        {
+          "direction": "debit",
+          "account_code": "222101",
+          "account_name": "应交增值税",
+          "amount": 107.76
+        },
+        {
+          "direction": "credit",
+          "account_code": "1002",
+          "account_name": "银行存款",
+          "amount": 10883.54
+        }
+      ],
+      "is_posted": true
+    },
+    {
+      "voucher_no": "记-2025-06-022",
+      "voucher_date": "2025-06-05",
+      "voucher_type": "payment",
+      "description": "向成都酒水饮料批发有限公司采购货物",
+      "attachment_count": 2,
+      "entries": [
+        {
+          "direction": "debit",
+          "account_code": "1405",
+          "account_name": "库存商品",
+          "amount": 13480.57
+        },
+        {
+          "direction": "debit",
+          "account_code": "222101",
+          "account_name": "应交增值税",
+          "amount": 134.81
+        },
+        {
+          "direction": "credit",
+          "account_code": "1002",
+          "account_name": "银行存款",
+          "amount": 13615.38
+        }
+      ],
+      "is_posted": true
+    },
+    {
+      "voucher_no": "记-2025-06-023",
+      "voucher_date": "2025-06-06",
+      "voucher_type": "payment",
+      "description": "向成都农产品批发市场有限公司采购货物",
+      "attachment_count": 5,
+      "entries": [
+        {
+          "direction": "debit",
+          "account_code": "1405",
+          "account_name": "库存商品",
+          "amount": 13795.96
+        },
+        {
+          "direction": "debit",
+          "account_code": "222101",
+          "account_name": "应交增值税",
+          "amount": 137.96
+        },
+        {
+          "direction": "credit",
+          "account_code": "1002",
+          "account_name": "银行存款",
+          "amount": 13933.92
+        }
+      ],
+      "is_posted": true
+    },
+    {
+      "voucher_no": "记-2025-06-024",
+      "voucher_date": "2025-06-10",
+      "voucher_type": "payment",
+      "description": "向成都酒水饮料批发有限公司采购货物",
+      "attachment_count": 8,
+      "entries": [
+        {
+          "direction": "debit",
+          "account_code": "1405",
+          "account_name": "库存商品",
+          "amount": 12583.94
+        },
+        {
+          "direction": "debit",
+          "account_code": "222101",
+          "account_name": "应交增值税",
+          "amount": 125.84
+        },
+        {
+          "direction": "credit",
+          "account_code": "1002",
+          "account_name": "银行存款",
+          "amount": 12709.78
+        }
+      ],
+      "is_posted": true
+    },
+    {
+      "voucher_no": "记-2025-06-025",
+      "voucher_date": "2025-06-15",
+      "voucher_type": "payment",
+      "description": "向成都农产品批发市场有限公司采购货物",
+      "attachment_count": 5,
+      "entries": [
+        {
+          "direction": "debit",
+          "account_code": "1405",
+          "account_name": "库存商品",
+          "amount": 10147.23
+        },
+        {
+          "direction": "debit",
+          "account_code": "222101",
+          "account_name": "应交增值税",
+          "amount": 101.47
+        },
+        {
+          "direction": "credit",
+          "account_code": "1002",
+          "account_name": "银行存款",
+          "amount": 10248.7
+        }
+      ],
+      "is_posted": true
+    },
+    {
+      "voucher_no": "记-2025-06-026",
+      "voucher_date": "2025-06-18",
+      "voucher_type": "payment",
+      "description": "向成都酒水饮料批发有限公司采购货物",
+      "attachment_count": 8,
+      "entries": [
+        {
+          "direction": "debit",
+          "account_code": "1405",
+          "account_name": "库存商品",
+          "amount": 11367.19
+        },
+        {
+          "direction": "debit",
+          "account_code": "222101",
+          "account_name": "应交增值税",
+          "amount": 113.67
+        },
+        {
+          "direction": "credit",
+          "account_code": "1002",
+          "account_name": "银行存款",
+          "amount": 11480.86
+        }
+      ],
+      "is_posted": true
+    },
+    {
+      "voucher_no": "记-2025-06-027",
+      "voucher_date": "2025-06-03",
+      "voucher_type": "payment",
+      "description": "向四川调味品供应链有限公司采购货物",
+      "attachment_count": 1,
+      "entries": [
+        {
+          "direction": "debit",
+          "account_code": "1405",
+          "account_name": "库存商品",
+          "amount": 13466.34
+        },
+        {
+          "direction": "debit",
+          "account_code": "222101",
+          "account_name": "应交增值税",
+          "amount": 134.66
+        },
+        {
+          "direction": "credit",
+          "account_code": "1002",
+          "account_name": "银行存款",
+          "amount": 13601.0
+        }
+      ],
+      "is_posted": true
+    },
+    {
+      "voucher_no": "记-2025-06-028",
+      "voucher_date": "2025-06-01",
+      "voucher_type": "payment",
+      "description": "向四川调味品供应链有限公司采购货物",
+      "attachment_count": 2,
+      "entries": [
+        {
+          "direction": "debit",
+          "account_code": "1405",
+          "account_name": "库存商品",
+          "amount": 12350.5
+        },
+        {
+          "direction": "debit",
+          "account_code": "222101",
+          "account_name": "应交增值税",
+          "amount": 123.51
+        },
+        {
+          "direction": "credit",
+          "account_code": "1002",
+          "account_name": "银行存款",
+          "amount": 12474.01
+        }
+      ],
+      "is_posted": true
+    },
+    {
+      "voucher_no": "记-2025-06-029",
+      "voucher_date": "2025-06-22",
+      "voucher_type": "payment",
+      "description": "向成都农产品批发市场有限公司采购货物",
+      "attachment_count": 1,
+      "entries": [
+        {
+          "direction": "debit",
+          "account_code": "1405",
+          "account_name": "库存商品",
+          "amount": 10040.6
+        },
+        {
+          "direction": "debit",
+          "account_code": "222101",
+          "account_name": "应交增值税",
+          "amount": 100.41
+        },
+        {
+          "direction": "credit",
+          "account_code": "1002",
+          "account_name": "银行存款",
+          "amount": 10141.01
+        }
+      ],
+      "is_posted": true
+    },
+    {
+      "voucher_no": "记-2025-06-030",
+      "voucher_date": "2025-06-25",
+      "voucher_type": "payment",
+      "description": "向成都酒水饮料批发有限公司采购货物",
+      "attachment_count": 3,
+      "entries": [
+        {
+          "direction": "debit",
+          "account_code": "1405",
+          "account_name": "库存商品",
+          "amount": 13674.5
+        },
+        {
+          "direction": "debit",
+          "account_code": "222101",
+          "account_name": "应交增值税",
+          "amount": 136.75
+        },
+        {
+          "direction": "credit",
+          "account_code": "1002",
+          "account_name": "银行存款",
+          "amount": 13811.25
+        }
+      ],
+      "is_posted": true
+    },
+    {
+      "voucher_no": "记-2025-06-031",
+      "voucher_date": "2025-06-17",
+      "voucher_type": "payment",
+      "description": "向四川调味品供应链有限公司采购货物",
+      "attachment_count": 8,
+      "entries": [
+        {
+          "direction": "debit",
+          "account_code": "1405",
+          "account_name": "库存商品",
+          "amount": 10368.52
+        },
+        {
+          "direction": "debit",
+          "account_code": "222101",
+          "account_name": "应交增值税",
+          "amount": 103.69
+        },
+        {
+          "direction": "credit",
+          "account_code": "1002",
+          "account_name": "银行存款",
+          "amount": 10472.21
+        }
+      ],
+      "is_posted": true
+    },
+    {
+      "voucher_no": "记-2025-06-032",
+      "voucher_date": "2025-06-21",
+      "voucher_type": "payment",
+      "description": "向四川调味品供应链有限公司采购货物",
+      "attachment_count": 8,
+      "entries": [
+        {
+          "direction": "debit",
+          "account_code": "1405",
+          "account_name": "库存商品",
+          "amount": 13646.47
+        },
+        {
+          "direction": "debit",
+          "account_code": "222101",
+          "account_name": "应交增值税",
+          "amount": 136.46
+        },
+        {
+          "direction": "credit",
+          "account_code": "1002",
+          "account_name": "银行存款",
+          "amount": 13782.93
+        }
+      ],
+      "is_posted": true
+    },
+    {
+      "voucher_no": "记-2025-06-033",
+      "voucher_date": "2025-06-16",
+      "voucher_type": "payment",
+      "description": "向成都农产品批发市场有限公司采购货物",
+      "attachment_count": 6,
+      "entries": [
+        {
+          "direction": "debit",
+          "account_code": "1405",
+          "account_name": "库存商品",
+          "amount": 14878.98
+        },
+        {
+          "direction": "debit",
+          "account_code": "222101",
+          "account_name": "应交增值税",
+          "amount": 148.79
+        },
+        {
+          "direction": "credit",
+          "account_code": "1002",
+          "account_name": "银行存款",
+          "amount": 15027.77
+        }
+      ],
+      "is_posted": true
+    },
+    {
+      "voucher_no": "记-2025-06-034",
+      "voucher_date": "2025-06-14",
+      "voucher_type": "transfer",
+      "description": "结转本月销售成本",
+      "attachment_count": 6,
+      "entries": [
+        {
+          "direction": "debit",
+          "account_code": "6401",
+          "account_name": "主营业务成本",
+          "amount": 226800.0
+        },
+        {
+          "direction": "credit",
+          "account_code": "1405",
+          "account_name": "库存商品",
+          "amount": 226800.0
+        }
+      ],
+      "is_posted": true
+    },
+    {
+      "voucher_no": "记-2025-06-035",
+      "voucher_date": "2025-06-11",
+      "voucher_type": "transfer",
+      "description": "计提行政管理人员工资",
+      "attachment_count": 2,
+      "entries": [
+        {
+          "direction": "debit",
+          "account_code": "6602",
+          "account_name": "管理费用",
+          "amount": 30000
+        },
+        {
+          "direction": "credit",
+          "account_code": "2211",
+          "account_name": "应付职工薪酬",
+          "amount": 30000
+        }
+      ],
+      "is_posted": true
+    },
+    {
+      "voucher_no": "记-2025-06-036",
+      "voucher_date": "2025-06-28",
+      "voucher_type": "payment",
+      "description": "发放本月工资（银行代发）",
+      "attachment_count": 3,
+      "entries": [
+        {
+          "direction": "debit",
+          "account_code": "2211",
+          "account_name": "应付职工薪酬",
+          "amount": 187500
+        },
+        {
+          "direction": "credit",
+          "account_code": "1002",
+          "account_name": "银行存款",
+          "amount": 153750.0
+        },
+        {
+          "direction": "credit",
+          "account_code": "222101",
+          "account_name": "应交增值税",
+          "amount": 33750.0
+        }
+      ],
+      "is_posted": true
+    },
+    {
+      "voucher_no": "记-2025-06-037",
+      "voucher_date": "2025-06-11",
+      "voucher_type": "transfer",
+      "description": "计提本月固定资产折旧",
+      "attachment_count": 7,
+      "entries": [
+        {
+          "direction": "debit",
+          "account_code": "6602",
+          "account_name": "管理费用",
+          "amount": 18000
+        },
+        {
+          "direction": "credit",
+          "account_code": "1602",
+          "account_name": "累计折旧",
+          "amount": 18000
+        }
+      ],
+      "is_posted": true
+    },
+    {
+      "voucher_no": "记-2025-06-038",
+      "voucher_date": "2025-06-27",
+      "voucher_type": "payment",
+      "description": "支付广告费",
+      "attachment_count": 1,
+      "entries": [
+        {
+          "direction": "debit",
+          "account_code": "6601",
+          "account_name": "销售费用",
+          "amount": 1040.5
+        },
+        {
+          "direction": "credit",
+          "account_code": "1002",
+          "account_name": "银行存款",
+          "amount": 1040.5
+        }
+      ],
+      "is_posted": true
+    },
+    {
+      "voucher_no": "记-2025-06-039",
+      "voucher_date": "2025-06-03",
+      "voucher_type": "payment",
+      "description": "支付广告费",
+      "attachment_count": 6,
+      "entries": [
+        {
+          "direction": "debit",
+          "account_code": "6601",
+          "account_name": "销售费用",
+          "amount": 2614.04
+        },
+        {
+          "direction": "credit",
+          "account_code": "1002",
+          "account_name": "银行存款",
+          "amount": 2614.04
+        }
+      ],
+      "is_posted": true
+    },
+    {
+      "voucher_no": "记-2025-06-040",
+      "voucher_date": "2025-06-13",
+      "voucher_type": "payment",
+      "description": "支付差旅费",
+      "attachment_count": 1,
+      "entries": [
+        {
+          "direction": "debit",
+          "account_code": "6601",
+          "account_name": "销售费用",
+          "amount": 714.07
+        },
+        {
+          "direction": "credit",
+          "account_code": "1002",
+          "account_name": "银行存款",
+          "amount": 714.07
+        }
+      ],
+      "is_posted": true
+    },
+    {
+      "voucher_no": "记-2025-06-041",
+      "voucher_date": "2025-06-14",
+      "voucher_type": "payment",
+      "description": "支付广告费",
+      "attachment_count": 1,
+      "entries": [
+        {
+          "direction": "debit",
+          "account_code": "6601",
+          "account_name": "销售费用",
+          "amount": 2632.27
+        },
+        {
+          "direction": "credit",
+          "account_code": "1002",
+          "account_name": "银行存款",
+          "amount": 2632.27
+        }
+      ],
+      "is_posted": true
+    },
+    {
+      "voucher_no": "记-2025-06-042",
+      "voucher_date": "2025-06-16",
+      "voucher_type": "payment",
+      "description": "支付物业费",
+      "attachment_count": 8,
+      "entries": [
+        {
+          "direction": "debit",
+          "account_code": "6602",
+          "account_name": "管理费用",
+          "amount": 601.16
+        },
+        {
+          "direction": "credit",
+          "account_code": "1002",
+          "account_name": "银行存款",
+          "amount": 601.16
+        }
+      ],
+      "is_posted": true
+    },
+    {
+      "voucher_no": "记-2025-06-043",
+      "voucher_date": "2025-06-07",
+      "voucher_type": "payment",
+      "description": "支付办公用品",
+      "attachment_count": 5,
+      "entries": [
+        {
+          "direction": "debit",
+          "account_code": "6602",
+          "account_name": "管理费用",
+          "amount": 1262.85
+        },
+        {
+          "direction": "credit",
+          "account_code": "1002",
+          "account_name": "银行存款",
+          "amount": 1262.85
+        }
+      ],
+      "is_posted": true
+    },
+    {
+      "voucher_no": "记-2025-06-044",
+      "voucher_date": "2025-06-29",
+      "voucher_type": "payment",
+      "description": "支付快递费",
+      "attachment_count": 8,
+      "entries": [
+        {
+          "direction": "debit",
+          "account_code": "6602",
+          "account_name": "管理费用",
+          "amount": 1652.63
+        },
+        {
+          "direction": "credit",
+          "account_code": "1002",
+          "account_name": "银行存款",
+          "amount": 1652.63
+        }
+      ],
+      "is_posted": true
+    },
+    {
+      "voucher_no": "记-2025-06-045",
+      "voucher_date": "2025-06-01",
+      "voucher_type": "payment",
+      "description": "支付办公用品",
+      "attachment_count": 4,
+      "entries": [
+        {
+          "direction": "debit",
+          "account_code": "6602",
+          "account_name": "管理费用",
+          "amount": 1676.41
+        },
+        {
+          "direction": "credit",
+          "account_code": "1002",
+          "account_name": "银行存款",
+          "amount": 1676.41
+        }
+      ],
+      "is_posted": true
+    },
+    {
+      "voucher_no": "记-2025-06-046",
+      "voucher_date": "2025-06-18",
+      "voucher_type": "payment",
+      "description": "支付交通费",
+      "attachment_count": 7,
+      "entries": [
+        {
+          "direction": "debit",
+          "account_code": "6602",
+          "account_name": "管理费用",
+          "amount": 1721.94
+        },
+        {
+          "direction": "credit",
+          "account_code": "1002",
+          "account_name": "银行存款",
+          "amount": 1721.94
+        }
+      ],
+      "is_posted": true
+    },
+    {
+      "voucher_no": "记-2025-06-047",
+      "voucher_date": "2025-06-08",
+      "voucher_type": "payment",
+      "description": "支付办公用品",
+      "attachment_count": 2,
+      "entries": [
+        {
+          "direction": "debit",
+          "account_code": "6602",
+          "account_name": "管理费用",
+          "amount": 1923.09
+        },
+        {
+          "direction": "credit",
+          "account_code": "1002",
+          "account_name": "银行存款",
+          "amount": 1923.09
+        }
+      ],
+      "is_posted": true
+    },
+    {
+      "voucher_no": "记-2025-06-048",
+      "voucher_date": "2025-06-05",
+      "voucher_type": "payment",
+      "description": "支付利息支出",
+      "attachment_count": 8,
+      "entries": [
+        {
+          "direction": "debit",
+          "account_code": "6603",
+          "account_name": "财务费用",
+          "amount": 1391.52
+        },
+        {
+          "direction": "credit",
+          "account_code": "1002",
+          "account_name": "银行存款",
+          "amount": 1391.52
+        }
+      ],
+      "is_posted": true
+    },
+    {
+      "voucher_no": "记-2025-06-049",
+      "voucher_date": "2025-06-10",
+      "voucher_type": "payment",
+      "description": "支付账户管理费",
+      "attachment_count": 5,
+      "entries": [
+        {
+          "direction": "debit",
+          "account_code": "6603",
+          "account_name": "财务费用",
+          "amount": 730.2
+        },
+        {
+          "direction": "credit",
+          "account_code": "1002",
+          "account_name": "银行存款",
+          "amount": 730.2
+        }
+      ],
+      "is_posted": true
+    },
+    {
+      "voucher_no": "记-2025-06-050",
+      "voucher_date": "2025-06-08",
+      "voucher_type": "payment",
+      "description": "支付利息支出",
+      "attachment_count": 8,
+      "entries": [
+        {
+          "direction": "debit",
+          "account_code": "6603",
+          "account_name": "财务费用",
+          "amount": 1411.89
+        },
+        {
+          "direction": "credit",
+          "account_code": "1002",
+          "account_name": "银行存款",
+          "amount": 1411.89
+        }
+      ],
+      "is_posted": true
+    },
+    {
+      "voucher_no": "记-2025-06-051",
+      "voucher_date": "2025-06-18",
+      "voucher_type": "transfer",
+      "description": "月末结转未交增值税",
+      "attachment_count": 3,
+      "entries": [
+        {
+          "direction": "debit",
+          "account_code": "222101",
+          "account_name": "应交增值税",
+          "amount": 37347.23
+        },
+        {
+          "direction": "credit",
+          "account_code": "222102",
+          "account_name": "应交企业所得税（代）",
+          "amount": 37347.23
+        }
+      ],
+      "is_posted": true
+    },
+    {
+      "voucher_no": "记-2025-06-052",
+      "voucher_date": "2025-06-13",
+      "voucher_type": "transfer",
+      "description": "计提本月附加税及印花税",
+      "attachment_count": 4,
+      "entries": [
+        {
+          "direction": "debit",
+          "account_code": "6403",
+          "account_name": "税金及附加",
+          "amount": 4643.67
+        },
+        {
+          "direction": "credit",
+          "account_code": "222103",
+          "account_name": "应交城市维护建设税",
+          "amount": 2614.31
+        },
+        {
+          "direction": "credit",
+          "account_code": "222104",
+          "account_name": "应交教育费附加",
+          "amount": 1120.42
+        },
+        {
+          "direction": "credit",
+          "account_code": "222105",
+          "account_name": "应交地方教育附加",
+          "amount": 746.94
+        },
+        {
+          "direction": "credit",
+          "account_code": "222106",
+          "account_name": "应交印花税",
+          "amount": 162.0
+        }
+      ],
+      "is_posted": true
+    },
+    {
+      "voucher_no": "记-2025-06-053",
+      "voucher_date": "2025-06-30",
+      "voucher_type": "transfer",
+      "description": "计提本月企业所得税（预缴）",
+      "attachment_count": 3,
+      "entries": [
+        {
+          "direction": "debit",
+          "account_code": "6801",
+          "account_name": "所得税费用",
+          "amount": 14033.1
+        },
+        {
+          "direction": "credit",
+          "account_code": "222102",
+          "account_name": "应交企业所得税",
+          "amount": 14033.1
+        }
+      ],
+      "is_posted": true
+    },
+    {
+      "voucher_no": "记-2025-06-054",
+      "voucher_date": "2025-06-28",
+      "voucher_type": "transfer",
+      "description": "月末结转损益至本年利润",
+      "attachment_count": 2,
+      "entries": [
+        {
+          "direction": "debit",
+          "account_code": "6001",
+          "account_name": "主营业务收入",
+          "amount": 579478.18
+        },
+        {
+          "direction": "credit",
+          "account_code": "4103",
+          "account_name": "本年利润",
+          "amount": 579478.18
+        },
+        {
+          "direction": "debit",
+          "account_code": "4103",
+          "account_name": "本年利润",
+          "amount": 312849.34
+        },
+        {
+          "direction": "credit",
+          "account_code": "6401",
+          "account_name": "主营业务成本",
+          "amount": 226800.0
+        },
+        {
+          "direction": "credit",
+          "account_code": "6403",
+          "account_name": "税金及附加",
+          "amount": 4643.67
+        },
+        {
+          "direction": "credit",
+          "account_code": "6601",
+          "account_name": "销售费用",
+          "amount": 7000.88
+        },
+        {
+          "direction": "credit",
+          "account_code": "6602",
+          "account_name": "管理费用",
+          "amount": 56838.08
+        },
+        {
+          "direction": "credit",
+          "account_code": "6603",
+          "account_name": "财务费用",
+          "amount": 3533.61
+        },
+        {
+          "direction": "credit",
+          "account_code": "6801",
+          "account_name": "所得税费用",
+          "amount": 14033.1
+        }
+      ],
+      "is_posted": true
+    }
+  ],
+  "trial_balance": {
+    "period": "2025-06",
+    "opening_balance": {
+      "1001": 50000,
+      "1002": 300000.0,
+      "1012": 50000.0,
+      "1122": 180000.0,
+      "1123": 43200.0,
+      "1221": 21600.0,
+      "1405": 90000.0,
+      "1403": 27000.0,
+      "1601": 1000000,
+      "1602": 400000,
+      "1801": 100000.0,
+      "2001": 430000.0,
+      "2202": 630000.0,
+      "2203": 16200.0,
+      "2211": 32400.0,
+      "2221": 10800.0,
+      "2241": 75000.0,
+      "2501": 150000.0,
+      "4001": 1000000.0,
+      "4103": 180000.0
+    },
+    "turnover": {
+      "1002": {
+        "debit": 545400.0,
+        "credit": 395074.63
+      },
+      "6001": {
+        "debit": 579478.18,
+        "credit": 579478.18
+      },
+      "222101": {
+        "debit": 39544.78,
+        "credit": 39544.78
+      },
+      "1122": {
+        "debit": 39872.96,
+        "credit": 0
+      },
+      "1405": {
+        "debit": 219754.51,
+        "credit": 226800.0
+      },
+      "6401": {
+        "debit": 226800.0,
+        "credit": 226800.0
+      },
+      "6602": {
+        "debit": 56838.08,
+        "credit": 56838.08
+      },
+      "2211": {
+        "debit": 187500,
+        "credit": 30000
+      },
+      "1602": {
+        "debit": 0,
+        "credit": 18000
+      },
+      "6601": {
+        "debit": 7000.88,
+        "credit": 7000.88
+      },
+      "6603": {
+        "debit": 3533.61,
+        "credit": 3533.61
+      },
+      "222102": {
+        "debit": 0,
+        "credit": 51380.33
+      },
+      "6403": {
+        "debit": 4643.67,
+        "credit": 4643.67
+      },
+      "222103": {
+        "debit": 0,
+        "credit": 2614.31
+      },
+      "222104": {
+        "debit": 0,
+        "credit": 1120.42
+      },
+      "222105": {
+        "debit": 0,
+        "credit": 746.94
+      },
+      "222106": {
+        "debit": 0,
+        "credit": 162.0
+      },
+      "6801": {
+        "debit": 14033.1,
+        "credit": 14033.1
+      },
+      "4103": {
+        "debit": 312849.34,
+        "credit": 579478.18
+      }
+    },
+    "closing_balance": {
+      "1001": 50000,
+      "1002": 450325.37,
+      "1012": 50000.0,
+      "1122": 219872.96,
+      "1123": 43200.0,
+      "1221": 21600.0,
+      "1405": 82954.51,
+      "1403": 27000.0,
+      "1601": 1000000,
+      "1602": 418000,
+      "1801": 100000.0,
+      "2001": 430000.0,
+      "2202": 630000.0,
+      "2203": 16200.0,
+      "2211": 125100.0,
+      "2221": 10800.0,
+      "2241": 75000.0,
+      "2501": 150000.0,
+      "4001": 1000000.0,
+      "4103": 446628.84,
+      "6001": 0.0,
+      "222101": 0.0,
+      "6401": 0.0,
+      "6602": 0.0,
+      "6601": 0.0,
+      "6603": 0.0,
+      "222102": 51380.33,
+      "6403": 0.0,
+      "222103": 2614.31,
+      "222104": 1120.42,
+      "222105": 746.94,
+      "222106": 162.0,
+      "6801": 0.0
+    },
+    "closing_directions": {
+      "1001": "debit",
+      "1002": "debit",
+      "1012": "debit",
+      "1122": "debit",
+      "1123": "debit",
+      "1221": "debit",
+      "1405": "debit",
+      "1403": "debit",
+      "1601": "debit",
+      "1602": "credit",
+      "1801": "debit",
+      "2001": "credit",
+      "2202": "credit",
+      "2203": "credit",
+      "2211": "debit",
+      "2221": "credit",
+      "2241": "credit",
+      "2501": "credit",
+      "4001": "credit",
+      "4103": "credit",
+      "6001": "debit",
+      "222101": "debit",
+      "6401": "debit",
+      "6602": "debit",
+      "6601": "credit",
+      "6603": "debit",
+      "222102": "credit",
+      "6403": "debit",
+      "222103": "credit",
+      "222104": "credit",
+      "222105": "credit",
+      "222106": "credit",
+      "6801": "debit"
+    }
+  },
+  "audit_workings": {
+    "audit_period": "2025-06",
+    "adjustments": [
+      {
+        "adj_no": "AJE-202506-01",
+        "type": "reclassification",
+        "description": "将账龄超过一年的应收账款重分类至长期应收款",
+        "entries": [
+          {
+            "direction": "debit",
+            "account_code": "1122",
+            "account_name": "应收账款",
+            "amount": -32980.94,
+            "note": "调减"
+          },
+          {
+            "direction": "debit",
+            "account_code": "1221",
+            "account_name": "其他应收款（长期）",
+            "amount": 32980.94,
+            "note": "重分类调入"
+          }
+        ]
+      },
+      {
+        "adj_no": "AJE-202506-02",
+        "type": "adjustment",
+        "description": "计提存货跌价准备（可变现净值低于账面成本）",
+        "entries": [
+          {
+            "direction": "debit",
+            "account_code": "6602",
+            "account_name": "管理费用",
+            "amount": 2488.64,
+            "note": "计提存货跌价"
+          },
+          {
+            "direction": "credit",
+            "account_code": "1405",
+            "account_name": "库存商品",
+            "amount": -2488.64,
+            "note": "冲减库存商品"
+          }
+        ]
+      },
+      {
+        "adj_no": "AJE-202506-03",
+        "type": "adjustment",
+        "description": "暂估未到票的应付采购款",
+        "entries": [
+          {
+            "direction": "debit",
+            "account_code": "1405",
+            "account_name": "库存商品",
+            "amount": 10800.0,
+            "note": "暂估入库"
+          },
+          {
+            "direction": "credit",
+            "account_code": "2202",
+            "account_name": "应付账款（暂估）",
+            "amount": 10800.0,
+            "note": "暂估应付"
+          }
+        ]
+      },
+      {
+        "adj_no": "AJE-202506-04",
+        "type": "adjustment",
+        "description": "补记截至资产负债表日已发生但未入账的费用",
+        "entries": [
+          {
+            "direction": "debit",
+            "account_code": "6602",
+            "account_name": "管理费用",
+            "amount": 2700.0,
+            "note": "应计费用"
+          },
+          {
+            "direction": "credit",
+            "account_code": "2241",
+            "account_name": "其他应付款",
+            "amount": 2700.0,
+            "note": "预提费用"
+          }
+        ]
+      },
+      {
+        "adj_no": "AJE-202506-05",
+        "type": "adjustment",
+        "description": "固定资产折旧测算差异调整（少提折旧补记）",
+        "entries": [
+          {
+            "direction": "debit",
+            "account_code": "6602",
+            "account_name": "管理费用",
+            "amount": 1440.0,
+            "note": "补提折旧"
+          },
+          {
+            "direction": "credit",
+            "account_code": "1602",
+            "account_name": "累计折旧",
+            "amount": 1440.0,
+            "note": "补提折旧"
+          }
+        ]
+      }
+    ],
+    "adjustment_count": 5,
+    "audit_conclusion": "经审计调整后，财务报表在所有重大方面公允反映了企业财务状况。"
+  },
+  "financial_statements": {
+    "income_statement": {
+      "period": "2025-06",
+      "items": {
+        "一、营业收入": 579478.18,
+        "减：营业成本": 226800.0,
+        "税金及附加": 4643.67,
+        "销售费用": 7000.88,
+        "管理费用": 56838.08,
+        "财务费用": 3533.61,
+        "二、营业利润": 280661.94,
+        "减：所得税费用": 14033.1,
+        "三、净利润": 266628.84
+      },
+      "audit_adjusted": {
+        "审计调整影响": -29880.0,
+        "调整后净利润": 236748.84
+      }
+    },
+    "balance_sheet": {
+      "period": "2025-06",
+      "total_assets": 1626952.84,
+      "total_liabilities": 1437100.0,
+      "total_equity": 189852.84,
+      "items": {
+        "流动资产": 846015.48,
+        "非流动资产": 780937.36,
+        "流动负债": 1235906.0,
+        "非流动负债": 201194.0,
+        "所有者权益": 189852.84
+      },
+      "勾稽验证": {
+        "资产=负债+权益": true,
+        "差额": 0.0
+      }
+    },
+    "cash_flow": {
+      "period": "2025-06",
+      "items": {
+        "经营活动现金流量净额": 298539.0,
+        "投资活动现金流量净额": -27000.0,
+        "筹资活动现金流量净额": 7100.0,
+        "现金及现金等价物净增加额": 278639.0,
+        "期初现金余额": 250000.0,
+        "期末现金余额": 528639.0
+      }
+    }
+  },
+  "tax_ledger": {
+    "period": "2025-06",
+    "vat": {
+      "tax_rate": "1.0%",
+      "output_tax": 39544.78,
+      "input_tax": 39544.78,
+      "input_tax_deductible": 37567.54,
+      "net_payable": 0.0,
+      "declared_revenue": 579478.18,
+      "actual_tax_burden": "0.0%"
+    },
+    "corporate_income_tax": {
+      "tax_rate": "5.0%",
+      "taxable_income": 280661.94,
+      "tax_payable": 14033.1,
+      "tax_payable_net": 14033.1
+    },
+    "surtax": {
+      "urban_construction": 0.0,
+      "education_surtax": 0.0,
+      "local_education_surtax": 0.0,
+      "total": 0.0
+    },
+    "stamp_duty": {
+      "taxable_amount": 579478.18,
+      "tax_rate": "0.03%",
+      "tax_payable": 173.84
+    },
+    "total_tax_payable": 14206.94
+  },
+  "audit_report": {
+    "report_title": "成都蜀味餐饮管理有限公司 2025年6月财务决算审计报告",
+    "report_no": "安永审字[2025]第E06号",
+    "audit_period": "2025-06",
+    "audit_firm": "安永华明会计师事务所（特殊普通合伙）",
+    "sections": {
+      "audit_opinion": {
+        "type": "无保留意见",
+        "text": "我们审计了成都蜀味餐饮管理有限公司2025年6月的财务报表。我们认为，后附的财务报表在所有重大方面按照企业会计准则的规定编制，公允反映了贵公司2025年6月30日的财务状况以及2025年6月的经营成果和现金流量。"
+      },
+      "basis_for_opinion": {
+        "text": "我们按照中国注册会计师审计准则的规定执行了审计工作。我们独立于贵公司，并履行了职业道德方面的其他责任。"
+      },
+      "key_audit_matters": [
+        {
+          "matter": "收入确认",
+          "description": "贵公司2025年6月营业收入为540,000.00元。",
+          "audit_response": "我们执行了了解和评价内部控制、抽样检查销售合同、实质性分析程序及截止性测试等审计程序。"
+        },
+        {
+          "matter": "应收账款减值",
+          "description": "贵公司应收账款余额约为180,000元。",
+          "audit_response": "我们评估了预期信用损失模型的适当性并执行了独立验证程序。"
+        }
+      ],
+      "management_responsibility": {
+        "text": "管理层负责按照企业会计准则的规定编制财务报表。"
+      },
+      "auditor_responsibility": {
+        "text": "我们的目标是对财务报表整体是否不存在由于舞弊或错误导致的重大错报获取合理保证。"
+      }
+    },
+    "financial_highlights": {
+      "total_assets": 1626952.84,
+      "total_liabilities": 1437100.0,
+      "total_equity": 189852.84,
+      "asset_liability_ratio": "88.3%",
+      "monthly_revenue": 579478.18,
+      "monthly_net_profit": 266628.84,
+      "audit_adjusted_net_profit": 236748.84,
+      "tax_burden_summary": "0.0%"
+    },
+    "audit_adjustments_summary": [
+      {
+        "no": "AJE-202506-01",
+        "type": "reclassification",
+        "desc": "将账龄超过一年的应收账款重分类至长期应收款"
+      },
+      {
+        "no": "AJE-202506-02",
+        "type": "adjustment",
+        "desc": "计提存货跌价准备（可变现净值低于账面成本）"
+      },
+      {
+        "no": "AJE-202506-03",
+        "type": "adjustment",
+        "desc": "暂估未到票的应付采购款"
+      },
+      {
+        "no": "AJE-202506-04",
+        "type": "adjustment",
+        "desc": "补记截至资产负债表日已发生但未入账的费用"
+      },
+      {
+        "no": "AJE-202506-05",
+        "type": "adjustment",
+        "desc": "固定资产折旧测算差异调整（少提折旧补记）"
+      }
+    ],
+    "report_date": "2025-07-10",
+    "audit_signature": {
+      "signing_cpa": "王明华",
+      "cert_no": "110000000001"
+    }
+  },
+  "_summary": {
+    "voucher_count": 54,
+    "journal_entry_count": 152,
+    "total_revenue": 579478.18,
+    "net_profit": 266628.84,
+    "total_assets": 1626952.84,
+    "total_tax": 14206.94
+  }
+}

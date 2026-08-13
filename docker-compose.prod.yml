@@ -1,0 +1,101 @@
+# ══════════════════════════════════════════════════════════════════
+#  税智·心判 — 生产环境覆盖配置
+#  等保2.0 三级 | DB 备份 | TLS 1.3 | Rate Limiting
+#
+#  用法:
+#    docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+# ══════════════════════════════════════════════════════════════════
+
+services:
+  # ── PostgreSQL 生产加固 ──────────────────────────────
+  postgres:
+    environment:
+      # TLS 证书路径（生产环境挂载）
+      POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256 --auth-local=peer"
+    command: >
+      postgres
+      -c ssl=on
+      -c ssl_cert_file=/etc/ssl/certs/postgres/server.crt
+      -c ssl_key_file=/etc/ssl/private/postgres/server.key
+      -c ssl_ca_file=/etc/ssl/certs/postgres/ca.crt
+      -c shared_preload_libraries=pg_stat_statements
+      -c log_statement=ddl
+      -c log_connections=on
+      -c log_disconnections=on
+      -c log_duration=on
+      -c log_min_duration_statement=1000
+      -c log_line_prefix='%t [%p]: [%l-1] user=%u,db=%d,app=%a,client=%h '
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      # TLS 证书（生产环境替换）
+      - ./certs/postgres:/etc/ssl/certs/postgres:ro
+      - ./certs/private:/etc/ssl/private/postgres:ro
+
+  # ── 数据库自动备份 ──────────────────────────────────
+  backup:
+    image: postgres:15-alpine
+    container_name: taxmind-backup
+    restart: unless-stopped
+    environment:
+      PGHOST: postgres
+      PGUSER: ${POSTGRES_USER:-taxmind}
+      PGPASSWORD: ${POSTGRES_PASSWORD:?err}
+      PGDATABASE: ${POSTGRES_DB:-taxmind}
+      # 备份保留策略
+      BACKUP_RETENTION_DAYS: 30
+      # 备份时间 (UTC)
+      BACKUP_CRON_SCHEDULE: "0 2 * * *"
+    volumes:
+      - backup_data:/backups
+      - ./scripts/backup.sh:/usr/local/bin/backup.sh:ro
+    networks:
+      - taxmind-net
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        apk add --no-cache dcron postgresql-client
+        echo "$$BACKUP_CRON_SCHEDULE /usr/local/bin/backup.sh >> /var/log/backup.log 2>&1" > /var/spool/cron/crontabs/root
+        # 启动时立即执行一次备份
+        /usr/local/bin/backup.sh
+        exec crond -f -l 2
+    deploy:
+      resources:
+        limits:
+          cpus: "0.3"
+          memory: 128M
+
+  # ── FastAPI 后端生产加固 ──────────────────────────
+  backend:
+    environment:
+      - DEBUG=false
+      - DB_POOL_SIZE=50
+      - DB_MAX_OVERFLOW=20
+      - DB_SSL_MODE=require
+    deploy:
+      replicas: 3
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1024M
+    # 健康检查间隔缩短（生产需要快速故障检测）
+    healthcheck:
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # ── Nginx 生产加固（TLS + Rate Limiting） ─────────
+  frontend:
+    environment:
+      - NGINX_ENABLE_TLS=true
+      - NGINX_RATE_LIMIT_ZONE="$$binary_remote_addr zone=api:10m rate=30r/m"
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      # TLS 证书
+      - ./certs/web:/etc/nginx/ssl:ro
+
+# ── 持久化卷 ────────────────────────────────────────
+volumes:
+  postgres_data:
+  backup_data:

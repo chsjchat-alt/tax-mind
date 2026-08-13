@@ -1,0 +1,86 @@
+{
+  "version": "1.0.0",
+  "description": "行业财税基准数据，用于风险比对和偏离度计算。数据来源：公开财税统计报告的脱敏均值。",
+  "last_updated": "2025-12-31",
+  "industries": {
+    "批发零售": {
+      "tax_burden_rate_mean": 3.5,
+      "tax_burden_rate_std": 0.8,
+      "cost_rate_mean": 85.0,
+      "cost_rate_std": 8.0,
+      "gross_margin_mean": 15.0,
+      "vat_output_rate": 13.0,
+      "average_annual_revenue": 30000000,
+      "average_employee_count": 60,
+      "input_output_ratio_mean": 0.85,
+      "invoice_product_match_rate": 0.82,
+      "private_card_ratio_mean": 0.08
+    },
+    "制造": {
+      "tax_burden_rate_mean": 3.5,
+      "tax_burden_rate_std": 1.0,
+      "cost_rate_mean": 85.0,
+      "cost_rate_std": 10.0,
+      "gross_margin_mean": 15.0,
+      "vat_output_rate": 13.0,
+      "average_annual_revenue": 50000000,
+      "average_employee_count": 150,
+      "input_output_ratio_mean": 0.75,
+      "invoice_product_match_rate": 0.80,
+      "private_card_ratio_mean": 0.10
+    },
+    "建筑": {
+      "tax_burden_rate_mean": 3.5,
+      "tax_burden_rate_std": 1.2,
+      "cost_rate_mean": 88.0,
+      "cost_rate_std": 9.0,
+      "gross_margin_mean": 12.0,
+      "vat_output_rate": 9.0,
+      "average_annual_revenue": 60000000,
+      "average_employee_count": 80,
+      "input_output_ratio_mean": 0.70,
+      "invoice_product_match_rate": 0.65,
+      "private_card_ratio_mean": 0.12
+    },
+    "电商": {
+      "tax_burden_rate_mean": 1.2,
+      "tax_burden_rate_std": 0.5,
+      "cost_rate_mean": 80.0,
+      "cost_rate_std": 12.0,
+      "gross_margin_mean": 20.0,
+      "vat_output_rate": 13.0,
+      "average_annual_revenue": 20000000,
+      "average_employee_count": 30,
+      "input_output_ratio_mean": 0.65,
+      "invoice_product_match_rate": 0.70,
+      "private_card_ratio_mean": 0.06
+    },
+    "餐饮服务": {
+      "tax_burden_rate_mean": 2.0,
+      "tax_burden_rate_std": 0.7,
+      "cost_rate_mean": 90.0,
+      "cost_rate_std": 5.0,
+      "gross_margin_mean": 10.0,
+      "vat_output_rate": 6.0,
+      "average_annual_revenue": 3000000,
+      "average_employee_count": 20,
+      "input_output_ratio_mean": 0.60,
+      "invoice_product_match_rate": 0.60,
+      "private_card_ratio_mean": 0.15
+    }
+  },
+  "small_micro_thresholds": {
+    "max_employees": 300,
+    "max_total_assets": 50000000,
+    "max_annual_profit": 3000000
+  },
+  "risk_alerts": {
+    "private_card_ratio": {"low": 5, "medium": 15, "high": 30},
+    "cost_deviation_pp": {"low": 5, "medium": 15, "high": 30},
+    "tax_burden_deviation_pp": {"low": 0.5, "medium": 1.5, "high": 3.0},
+    "input_output_ratio": {"low_min": 0.6, "high_max": 1.4},
+    "large_personal_transfer_count": {"low": 3, "medium": 5, "high": 10},
+    "large_personal_transfer_amount": 50000,
+    "invoice_product_match_rate_threshold": 0.5
+  }
+}
