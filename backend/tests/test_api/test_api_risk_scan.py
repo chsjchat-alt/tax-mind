@@ -87,8 +87,11 @@ class TestRiskScanSuccess:
         self, client: AsyncClient, enterprise_with_full_data
     ):
         """扫描两次后，历史列表应有 2 条记录"""
+        from app.core.cache import risk_scan_cache
         eid = enterprise_with_full_data.id
         await client.post(f"/api/v1/enterprises/{eid}/risk-scan")
+        # 绕过 10 分钟扫描缓存，强制第二次扫描重新计算并落库
+        await risk_scan_cache.invalidate()
         await client.post(f"/api/v1/enterprises/{eid}/risk-scan")
 
         resp = await client.get(f"/api/v1/enterprises/{eid}/risk-assessments")
@@ -116,12 +119,12 @@ class TestRiskScanErrors:
 
     @pytest.mark.asyncio
     async def test_scan_nonexistent_enterprise(self, client: AsyncClient):
-        """不存在的企业 ID → 40001"""
-        resp = await client.post("/api/v1/enterprises/non-existent-id/risk-scan")
-        assert resp.status_code == 200  # FastAPI 统一响应包装，HTTP 200 + 业务错误码
-        body = resp.json()
-        assert body["code"] == 40001
-        assert "不存在" in body["message"]
+        """不存在的企业 ID → 403（租户隔离：不泄露企业存在性）"""
+        resp = await client.post(
+            "/api/v1/enterprises/11111111-1111-1111-1111-111111111111/risk-scan"
+        )
+        assert resp.status_code == 403
+        assert "不存在或无权访问" in resp.json()["detail"]
 
 
 class TestRiskScanEdgeCases:

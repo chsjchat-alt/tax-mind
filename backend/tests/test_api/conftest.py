@@ -65,6 +65,80 @@ async def db_session():
         await session.rollback()
 
 
+@pytest_asyncio.fixture(autouse=True)
+async def auth_env(db_session, monkeypatch):
+    """多租户认证环境（autouse，每个测试独立）。
+
+    背景：端点统一通过 deps.require_* 依赖注入当前用户（JWT 解析），
+    普通用例无法自行构造 Token。该 fixture 创建一个「租户A + 管理员」，
+    并覆盖全部 require_* 依赖返回该用户，使请求默认通过认证与租户校验。
+
+    依赖覆盖顺序：
+      - 本 fixture 先设置默认身份；
+      - test_api_tenant_isolation / test_api_compliance 会再次覆盖以切换身份；
+      - teardown 逆序清理，互不污染。
+    同时将 _write_audit_log 替换为 noop，避免异步任务泄漏
+    （coroutine never awaited / SQLite 句柄占用）。
+    """
+    from app import main as app_main
+    from app.api import deps as api_deps
+    from app.main import app
+    from app.models.tenant import Tenant
+    from app.models.user import User, UserRole
+
+    tenant = Tenant(
+        id=str(uuid.uuid4()),
+        name=f"测试租户-{uuid.uuid4().hex[:8]}",
+        slug=f"tt-{uuid.uuid4().hex[:8]}",
+        is_active=True,
+    )
+    user = User(
+        username=f"tester_{uuid.uuid4().hex[:8]}",
+        hashed_password="unused",
+        tenant_id=tenant.id,
+        role=UserRole.ADMIN,
+    )
+    db_session.add_all([tenant, user])
+    await db_session.commit()
+
+    async def _current_user() -> User:
+        return user
+
+    async def _tenant_id_override() -> str:
+        return tenant.id
+
+    for dep in (
+        api_deps.require_viewer,
+        api_deps.require_auditor,
+        api_deps.require_admin,
+        api_deps.require_admin_or_auditor,
+    ):
+        app.dependency_overrides[dep] = _current_user
+    app.dependency_overrides[api_deps.get_current_tenant_id] = _tenant_id_override
+
+    async def _noop_audit_log(_: dict) -> None:
+        return None
+
+    monkeypatch.setattr(app_main, "_write_audit_log", _noop_audit_log)
+
+    # 清空内存 TTL 缓存（risk_scan_cache 10 分钟 / profile_cache），
+    # 避免跨用例缓存命中导致同企业第二次扫描/画像不落库。
+    from app.core.cache import risk_scan_cache, profile_cache
+    await risk_scan_cache.invalidate()
+    await profile_cache.invalidate()
+
+    yield {"tenant": tenant, "user": user}
+
+    for dep in (
+        api_deps.require_viewer,
+        api_deps.require_auditor,
+        api_deps.require_admin,
+        api_deps.require_admin_or_auditor,
+    ):
+        app.dependency_overrides.pop(dep, None)
+    app.dependency_overrides.pop(api_deps.get_current_tenant_id, None)
+
+
 @pytest_asyncio.fixture
 async def client():
     """httpx.AsyncClient（ASGI transport，不走网络）"""
@@ -80,11 +154,12 @@ async def client():
 # ====================================================================
 
 @pytest_asyncio.fixture
-async def test_enterprise(db_session):
+async def test_enterprise(db_session, auth_env):
     """创建一个基础测试企业并持久化到 DB"""
     from app.models.enterprise import Enterprise, IndustryType
 
     ent = Enterprise(
+        tenant_id=auth_env["tenant"].id,
         name="测试企业-API",
         credit_code=_rand_credit_code(),
         industry=IndustryType.WHOLESALE_RETAIL,
@@ -101,7 +176,7 @@ async def test_enterprise(db_session):
 
 
 @pytest_asyncio.fixture
-async def enterprise_with_full_data(db_session):
+async def enterprise_with_full_data(db_session, auth_env):
     """创建带完整关联数据（流水、发票、合同、申报、财报）的企业"""
     from app.models.enterprise import Enterprise, IndustryType
     from app.models.bank_transaction import BankTransaction, DirectionType, AccountType
@@ -113,6 +188,7 @@ async def enterprise_with_full_data(db_session):
     eid = str(uuid.uuid4())
     ent = Enterprise(
         id=eid,
+        tenant_id=auth_env["tenant"].id,
         name="完整数据测试企业",
         credit_code=_rand_credit_code(),
         industry=IndustryType.MANUFACTURING,

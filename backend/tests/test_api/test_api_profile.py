@@ -126,22 +126,21 @@ class TestProfileErrors:
 
     @pytest.mark.asyncio
     async def test_profile_nonexistent_enterprise(self, client: AsyncClient):
-        """不存在的企业 ID → 40001"""
-        resp = await client.post("/api/v1/enterprises/ghost-id/profile")
-        assert resp.status_code == 200
-        body = resp.json()
-        assert body["code"] == 40001
-        assert "不存在" in body["message"]
+        """不存在的企业 ID → 403（租户隔离：不泄露企业存在性）"""
+        resp = await client.post(
+            "/api/v1/enterprises/11111111-1111-1111-1111-111111111111/profile"
+        )
+        assert resp.status_code == 403
+        assert "不存在或无权访问" in resp.json()["detail"]
 
     @pytest.mark.asyncio
     async def test_profile_latest_empty(self, client: AsyncClient):
-        """无画像记录时查询最新 → 40001"""
+        """不存在的企业查询最新画像 → 403"""
         import uuid
         eid = str(uuid.uuid4())
         resp = await client.get(f"/api/v1/enterprises/{eid}/profiles/latest")
-        assert resp.status_code == 200
-        body = resp.json()
-        assert body["code"] == 40001
+        assert resp.status_code == 403
+        assert "不存在或无权访问" in resp.json()["detail"]
 
 
 class TestProfileEdgeCases:

@@ -106,7 +106,7 @@ class TestSimulationErrors:
     async def test_simulate_nonexistent_enterprise(self, client: AsyncClient):
         """不存在的企业 ID → 40001"""
         resp = await client.post(
-            SIMULATE_URL.format(eid="non-existent-enterprise"),
+            SIMULATE_URL.format(eid="11111111-1111-1111-1111-111111111111"),
             json={"monthly_hidden_revenue": 10000},
         )
         assert resp.status_code == 200

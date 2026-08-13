@@ -18,7 +18,7 @@ from app.core.simulation_engine import (
     SimulationResult,
     TimePointResult,
     AUDIT_PROBABILITY_MATRIX,
-    PENALTY_MULTIPLIERS,
+    PENALTY_MULTIPLIER,
     LATE_FEE_DAILY_RATE,
 )
 
