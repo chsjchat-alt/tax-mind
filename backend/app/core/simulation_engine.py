@@ -724,7 +724,7 @@ def _generate_official_notice(
         f"",
         f"文档编号：{doc_number}",
         f"出具日期：{doc_date}",
-        f"出具机构：{OfficialNoticePreview.model_fields["issuing_body"].default}",
+        f"出具机构：{OfficialNoticePreview.model_fields['issuing_body'].default}",
         f"",
         f"致：{enterprise_name}",
         f"统一社会信用代码：{credit_code or '（未登记）'}",
