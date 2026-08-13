@@ -31,6 +31,9 @@ email-validator>=2.1.0,<3.0.0
 # ── PDF 报告生成 ──
 fpdf2>=2.8.0,<3.0.0
 
+# ── Excel 文档解析（上传附件解析） ──
+openpyxl>=3.1.0,<4.0.0
+
 # ── PostgreSQL 驱动（生产环境） ──
 # asyncpg 异步驱动（主用，sqlalchemy[asyncio] 已包含）
 # psycopg2-binary 兜底：避免任何同步 postgresql:// 方言路径（如旧式 engine）
