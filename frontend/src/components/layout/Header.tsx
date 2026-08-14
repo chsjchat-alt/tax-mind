@@ -7,8 +7,8 @@ import { useAuthStore } from '@/store/authStore';
 function Header() {
   const {
     enterprises, currentEnterprise,
-    listLoading, detailLoading, error,
-    fetchEnterprises, selectEnterprise,
+    listLoading, detailLoading, error, detailError,
+    fetchEnterprises, selectEnterprise, retryDetail,
   } = useEnterpriseStore();
   const { username, logout } = useAuthStore();
 
@@ -79,6 +79,16 @@ function Header() {
               title="退出登录"
             />
           </>
+        )}
+        {/* 详情加载失败：与列表错误分离，点击仅重试该企业详情，避免"重试无响应" */}
+        {detailError && (
+          <span
+            className="text-xs text-red-500 cursor-pointer whitespace-nowrap"
+            onClick={retryDetail}
+            data-testid="detail-retry"
+          >
+            企业详情加载失败，点击重试
+          </span>
         )}
       </div>
     </header>

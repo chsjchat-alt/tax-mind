@@ -16,9 +16,15 @@ export interface EnterpriseState {
   listLoading: boolean;
   /** 企业详情加载状态（切换企业时保持选择器常驻） */
   detailLoading: boolean;
+  /** 企业列表加载失败（Header 下拉框"点击重试"入口） */
   error: string | null;
+  /** 企业详情加载失败（与列表错误分离，避免重试被误导到列表接口） */
+  detailError: string | null;
+  /** 最近一次选择但加载失败的企业 id（供"重试详情"使用） */
+  pendingDetailId: string | null;
   fetchEnterprises: () => Promise<void>;
   selectEnterprise: (id: string) => Promise<void>;
+  retryDetail: () => Promise<void>;
 }
 
 // 请求序号：last-request-wins 防竞态，旧请求晚返回时直接丢弃
@@ -31,6 +37,8 @@ export const useEnterpriseStore = create<EnterpriseState>((set, get) => ({
   listLoading: false,
   detailLoading: false,
   error: null,
+  detailError: null,
+  pendingDetailId: null,
 
   fetchEnterprises: async () => {
     // 幂等：in-flight 请求复用，避免 Header + Dashboard + StrictMode 重复请求
@@ -46,7 +54,7 @@ export const useEnterpriseStore = create<EnterpriseState>((set, get) => ({
 
   selectEnterprise: async (id: string) => {
     const seq = ++detailSeq;
-    set({ detailLoading: true, error: null });
+    set({ detailLoading: true, error: null, detailError: null, pendingDetailId: null });
     try {
       const res = await enterpriseApi.detail(id);
       // 旧请求丢弃：期间用户已切换到其他企业
@@ -59,7 +67,13 @@ export const useEnterpriseStore = create<EnterpriseState>((set, get) => ({
       });
     } catch {
       if (seq !== detailSeq) return;
-      set({ detailLoading: false, error: '企业详情加载失败' });
+      set({ detailLoading: false, detailError: '企业详情加载失败', pendingDetailId: id });
     }
+  },
+
+  /** 重试最近一次失败的企业详情加载（而非重新拉取企业列表） */
+  retryDetail: async () => {
+    const { pendingDetailId } = get();
+    if (pendingDetailId) await get().selectEnterprise(pendingDetailId);
   },
 }));

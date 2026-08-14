@@ -124,12 +124,21 @@ async def get_enterprise(
     ]
 
     async def _count(model):
-        result = await db.execute(
-            select(func.count()).select_from(
-                select(model).where(model.enterprise_id == eid).subquery()
+        # 单表统计失败不拖垮详情接口：生产库若存在列/表漂移（create_all 不补列），
+        # 该表计数降级为 0 并记录日志，其余数据正常返回
+        try:
+            result = await db.execute(
+                select(func.count()).select_from(
+                    select(model).where(model.enterprise_id == eid).subquery()
+                )
             )
-        )
-        return result.scalar() or 0
+            return result.scalar() or 0
+        except Exception as exc:
+            logger.warning(
+                "企业详情统计失败 model=%s enterprise=%s: %s",
+                model.__name__, enterprise_id, exc,
+            )
+            return 0
 
     counts = await asyncio.gather(*(_count(m) for m, _ in models))
     stats = {label: cnt for (_, label), cnt in zip(models, counts)}

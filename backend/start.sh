@@ -85,6 +85,9 @@ async def main() -> None:
 asyncio.run(main())
 PY
 
+    echo "幂等补齐生产 schema（补列/建表/种子，覆盖 create_all 无法处理的存量库漂移）..."
+    python scripts/migrate_schema.py
+
     echo "导入种子数据（幂等）..."
     python seed_multi_tenant.py
 else
