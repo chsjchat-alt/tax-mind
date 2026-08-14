@@ -188,7 +188,10 @@ async def health_check():
 async def root():
     index_file = _FRONTEND_DIST / "index.html"
     if index_file.exists():
-        return FileResponse(index_file)
+        # index.html 必须每次校验（no-cache）：防止浏览器缓存旧版 index.html，
+        # 导致部署后仍引用已被替换的 hash chunk（动态 import 404）；
+        # hash 命名的 /assets 资源天然强缓存，不受影响。
+        return FileResponse(index_file, headers={"Cache-Control": "no-cache"})
     return HTMLResponse(f"""<!DOCTYPE html>
 <html lang="zh-CN">
 <head><meta charset="UTF-8"><title>{settings.app_name}</title></head>
@@ -241,7 +244,7 @@ if _FRONTEND_DIST.is_dir():
             )
         index_file = _FRONTEND_DIST / "index.html"
         if index_file.exists():
-            return FileResponse(index_file)
+            return FileResponse(index_file, headers={"Cache-Control": "no-cache"})
         return JSONResponse(
             status_code=404,
             content=error_response(40400, "资源不存在"),
