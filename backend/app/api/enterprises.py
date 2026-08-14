@@ -100,8 +100,9 @@ async def list_enterprises(
     if summaries:
         try:
             ids = [str(s.id) for s in summaries]
-            # 批量加载各企业最新一次评估的发现数（一次查询，消除 N+1）
+            # 批量加载各企业最新一次评估的发现数与原始分（一次查询，消除 N+1）
             findings_counts: dict[str, int] = {}
+            base_scores: dict[str, float] = {}
             ra_result = await db.execute(
                 select(RiskAssessment)
                 .where(RiskAssessment.enterprise_id.in_(ids))
@@ -110,8 +111,12 @@ async def list_enterprises(
             for ra in ra_result.scalars().all():
                 if ra.enterprise_id not in findings_counts:
                     findings_counts[ra.enterprise_id] = _count_findings(ra.risk_details)
+                    if ra.overall_risk_score is not None:
+                        base_scores[ra.enterprise_id] = float(ra.overall_risk_score)
             adjusted_map = await compute_compliance_adjusted_risks(
-                db, ids, compliance_findings_counts=findings_counts,
+                db, ids,
+                compliance_findings_counts=findings_counts,
+                base_scores=base_scores,
             )
             for summary in summaries:
                 adj = adjusted_map.get(str(summary.id))

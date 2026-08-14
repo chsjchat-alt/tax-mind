@@ -309,7 +309,7 @@ export function ImprovementFeedback({
         <div className="flex items-center justify-around">
           {/* 整改前 */}
           <div className="text-center">
-            <p className="text-xs text-gray-400 mb-2">整改前</p>
+            <p className="text-xs text-gray-400 mb-2">原始分（整改前）</p>
             <div
               className="w-24 h-24 rounded-full flex items-center justify-center mx-auto border-4"
               style={{ borderColor: initialScore >= 70 ? RISK_COLORS.high : initialScore >= 40 ? RISK_COLORS.medium : RISK_COLORS.low }}
@@ -339,7 +339,7 @@ export function ImprovementFeedback({
 
           {/* 整改后 */}
           <div className="text-center">
-            <p className="text-xs text-gray-400 mb-2">整改后</p>
+            <p className="text-xs text-gray-400 mb-2">整改后分（调整后）</p>
             <div
               className="w-24 h-24 rounded-full flex items-center justify-center mx-auto border-4"
               style={{ borderColor: currentScore >= 70 ? RISK_COLORS.high : currentScore >= 40 ? RISK_COLORS.medium : RISK_COLORS.low }}

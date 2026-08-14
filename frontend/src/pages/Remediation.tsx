@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useEnterpriseStore } from '@/store';
-import { remediationApi, riskScanApi, profileApi, complianceCheckApi } from '@/api';
+import { remediationApi, riskScanApi, profileApi, complianceCheckApi, enterpriseApi } from '@/api';
 import { ProgressDonut, TaskCard, ImprovementFeedback } from '@/components/remediation';
 import UploadPanel from '@/components/upload';
 import { LoadingSpinner, EmptyState } from '@/components/common';
@@ -8,7 +8,7 @@ import {
   Button, Modal, Form, Input, Select, DatePicker, Radio, App, Tag, Collapse, Space, Badge, Checkbox,
 } from 'antd';
 import { PlusOutlined, AuditOutlined, WarningOutlined, CheckCircleOutlined, InfoCircleOutlined, FileExcelOutlined } from '@ant-design/icons';
-import type { RemediationTask, RemediationTaskUpdateResult, ComplianceFinding, ComplianceCheckResult } from '@/types';
+import type { RemediationTask, RemediationTaskUpdateResult, ComplianceFinding, ComplianceCheckResult, ComplianceAdjustedRisk } from '@/types';
 import dayjs from 'dayjs';
 
 const STATUS_OPTIONS = [
@@ -73,16 +73,23 @@ function Remediation() {
       feedbackUpdatedByCompliance.current = false;
       return;
     }
-    // 风险扫描历史（最近2次）
+    // 整改前基准 = 风险扫描历史（最近2次）的原始分
     riskScanApi.list(enterpriseId)
       .then((res) => {
         const assessments = res.data.data?.assessments || [];
-        if (assessments.length >= 2) {
-          setInitialScore(assessments[assessments.length - 2]?.overall_risk_score || 0);
-          setCurrentScore(assessments[assessments.length - 1]?.overall_risk_score || 0);
-        } else if (assessments.length === 1) {
-          setCurrentScore(assessments[0]?.overall_risk_score || 0);
-        }
+        const lastRaw = assessments[assessments.length - 1]?.overall_risk_score || 0;
+        const prevRaw = assessments.length >= 2
+          ? (assessments[assessments.length - 2]?.overall_risk_score || 0)
+          : lastRaw;
+        setInitialScore(prevRaw);
+        // 整改后分 = 统一消费后端合规调整分（compute_compliance_adjusted_risk），
+        // compliance 缺失时回退最新原始分，保证与"双栏展示"口径一致且刷新不漂移。
+        enterpriseApi.detail(enterpriseId)
+          .then((dres) => {
+            const compliance = (dres.data.data as Record<string, unknown>)?.compliance as ComplianceAdjustedRisk | undefined;
+            setCurrentScore(compliance?.adjusted_score ?? lastRaw);
+          })
+          .catch((err) => { console.error('加载合规调整分失败:', err); setCurrentScore(lastRaw); });
       })
       .catch((err) => { console.error('加载历史评估列表失败:', err); });
 
@@ -254,8 +261,8 @@ function Remediation() {
       if (newStatus === 'completed') {
         if (data?.comparison) {
           const { before, after } = data.comparison;
-          // 优先使用合规调整后的统一评分
-          const beforeScore = before?.compliance_adjusted?.adjusted_score
+          // 双栏口径：整改前 = 原始分（original_score / 快照原始分），整改后 = 调整后分
+          const beforeScore = before?.compliance_adjusted?.original_score
             ?? before?.overall_risk_score;
           const afterScore = after?.compliance_adjusted?.adjusted_score
             ?? after?.overall_risk_score;

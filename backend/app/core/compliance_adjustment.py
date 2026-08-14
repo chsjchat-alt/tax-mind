@@ -17,11 +17,21 @@ from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.remediation_task import RemediationTask, TaskStatus
-from app.models.risk_assessment import AssessRiskLevel
+from app.models.risk_assessment import RiskAssessment, AssessRiskLevel
 from app.models.enterprise import Enterprise
 from app.core.credit_veto import resolve_tax_credit_veto
 
 _logger = logging.getLogger(__name__)
+
+
+def _count_findings(risk_details: Any) -> int:
+    """统计风险明细中的正向发现数（正数数值键计为 1 个发现）。"""
+    if not isinstance(risk_details, dict):
+        return 0
+    return sum(
+        1 for v in risk_details.values() if isinstance(v, (int, float)) and v > 0
+    )
+
 
 # ── 风险评分阈值（默认值；与 risk_config 键一一对应，可配置化）──
 DEFAULT_THRESHOLDS: dict[str, float] = {
@@ -96,11 +106,13 @@ async def compute_compliance_adjusted_risk(
     Args:
         db: 数据库会话
         enterprise_id: 企业 ID
-        base_score: 原始风险评分（如无，默认 100 意为待评估）
-        compliance_findings_count: 合规校验发现数（如无，不参与完全合规判断）
+        base_score: 原始风险评分（如无，自动兜底取该企业最新一次风险评估分）
+        compliance_findings_count: 合规校验发现数（如无，自动兜底取最新评估的发现数）
 
     Returns:
         {
+            "original_score": float,      # 原始风险评分 (0-100)
+            "original_level": str,        # 原始风险等级 (frontend RiskLevel)
             "adjusted_score": float,      # 调整后评分 (0-100)
             "adjusted_level": str,        # 调整后等级 (frontend RiskLevel)
             "completion_count": int,      # 已完成合规任务数
@@ -128,6 +140,22 @@ async def compute_compliance_adjusted_risk(
     pct_per_task = _config.get("reduction_pct_per_task", 0.15)
     pct_max = _config.get("reduction_pct_max", 0.80)
     thresholds = _load_thresholds(_config)
+
+    # 0.6 兜底取数：未传 base_score / findings 时自动查最新评估，保证
+    #     所有调用点（profile/upload/simulation/ssf/reports/remediation 等）
+    #     统一走同一口径，避免各接口因漏传参数而偏离真实风险分。
+    if base_score is None or compliance_findings_count is None:
+        ra_result = await db.execute(
+            select(RiskAssessment)
+            .where(RiskAssessment.enterprise_id == enterprise_id)
+            .order_by(RiskAssessment.assessment_date.desc())
+            .limit(1)
+        )
+        latest_ra = ra_result.scalar_one_or_none()
+        if base_score is None and latest_ra is not None and latest_ra.overall_risk_score is not None:
+            base_score = float(latest_ra.overall_risk_score)
+        if compliance_findings_count is None and latest_ra is not None:
+            compliance_findings_count = _count_findings(latest_ra.risk_details)
 
     # 1. 查询已完成的合规整改任务
     completed_result = await db.execute(
@@ -172,6 +200,9 @@ async def compute_compliance_adjusted_risk(
         else AssessRiskLevel.LOW
     )
     adjusted_level = level_to_frontend(adjusted_level_enum, adjusted_score, thresholds)
+    original_level = level_to_frontend(
+        score_to_level(raw_score, thresholds), raw_score, thresholds
+    )
 
     _logger.info(
         "合规调整 | enterprise=%s | base=%.1f | completed=%d | reduction=%.0f%% | adjusted=%.1f (%s) | fully_compliant=%s | veto=%s",
@@ -181,6 +212,8 @@ async def compute_compliance_adjusted_risk(
     )
 
     return {
+        "original_score": round(raw_score, 2),
+        "original_level": original_level,
         "adjusted_score": round(adjusted_score, 2),
         "adjusted_level": adjusted_level,
         "completion_count": completion_count,
@@ -194,11 +227,16 @@ async def compute_compliance_adjusted_risks(
     db: AsyncSession,
     enterprise_ids: list[str],
     compliance_findings_counts: dict[str, int] | None = None,
+    base_scores: dict[str, float] | None = None,
 ) -> dict[str, dict]:
     """批量计算多企业的合规调整风险（一次 IN 查询，消除列表接口的 N+1）。
 
+    Args:
+        base_scores: 各企业原始风险评分 {enterprise_id: score}；缺失企业回退 100。
+
     Returns:
-        {enterprise_id: {"adjusted_score", "adjusted_level", "completion_count",
+        {enterprise_id: {"original_score", "original_level", "adjusted_score",
+                         "adjusted_level", "completion_count",
                          "is_fully_compliant", "reduction_pct"}}
     """
     if not enterprise_ids:
@@ -248,7 +286,7 @@ async def compute_compliance_adjusted_risks(
         else:
             reduction_pct = min(pct_max, completion_count * pct_per_task)
 
-        raw_score = 100.0
+        raw_score = (base_scores or {}).get(eid, 100.0)
         if veto_reason:
             # 一票否决触发 → 修复加分 R 不计，评分保持原始风险分不变
             adjusted_score = raw_score
@@ -264,6 +302,10 @@ async def compute_compliance_adjusted_risks(
             else score_to_level(adjusted_score, thresholds)
         )
         adjusted[eid] = {
+            "original_score": round(raw_score, 2),
+            "original_level": level_to_frontend(
+                score_to_level(raw_score, thresholds), raw_score, thresholds
+            ),
             "adjusted_score": round(adjusted_score, 2),
             "adjusted_level": level_to_frontend(
                 adjusted_level_enum, adjusted_score, thresholds

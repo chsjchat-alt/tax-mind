@@ -560,6 +560,10 @@ export interface UploadCheckResult {
 
 /** 合规调整风险数据（后端 compliance_adjustment 模块） */
 export interface ComplianceAdjustedRisk {
+  /** 原始风险评分（整改前/未调整口径） */
+  original_score?: number;
+  /** 原始风险等级（整改前/未调整口径，前端五级） */
+  original_level?: RiskLevel;
   adjusted_score: number;
   adjusted_level: RiskLevel;
   completion_count: number;

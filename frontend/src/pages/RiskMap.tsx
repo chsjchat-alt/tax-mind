@@ -11,7 +11,7 @@ import {
   RISK_COLORS, RISK_LABELS, AUDIT_PROBABILITY_CRITICAL,
   BUSINESS_MODEL_MAP, BUSINESS_MODEL_DESC,
 } from '@/types';
-import type { RiskLevel, BusinessModel, CostGaugeData, TaxBurdenElasticityData, ICRadarData, NBTInterventionResult, MatchDetailItem, RiskScoreTrajectory } from '@/types';
+import type { RiskLevel, BusinessModel, CostGaugeData, TaxBurdenElasticityData, ICRadarData, NBTInterventionResult, MatchDetailItem, RiskScoreTrajectory, ComplianceAdjustedRisk } from '@/types';
 import type { Language } from '@/components/riskmap';
 
 // ═══════════════════════════════════════
@@ -184,9 +184,8 @@ function RiskMap() {
   const [language, setLanguage] = useState<Language>('business');
   const [nbtData, setNbtData] = useState<NBTInterventionResult | null>(null);
   const [nbtLoading, setNbtLoading] = useState(false);
-  // 合规调整数据（跨模块联动）
-  const [complianceReduction, setComplianceReduction] = useState(0);
-  const [isFullyCompliant, setIsFullyCompliant] = useState(false);
+  // 合规调整数据（跨模块联动：统一消费后端 compute_compliance_adjusted_risk 结果）
+  const [complianceAdj, setComplianceAdj] = useState<ComplianceAdjustedRisk | null>(null);
   // 匹配明细筛选：仅显示未匹配项
   const [onlyUnmatched, setOnlyUnmatched] = useState(false);
   // 整改前后评分演化轨迹（B3）
@@ -197,17 +196,18 @@ function RiskMap() {
   useEffect(() => {
     if (!enterpriseId) return;
     fetchLatest(enterpriseId);
-    // 同时获取合规调整数据
+    // 同时获取合规调整数据（统一收口：原始分/调整后分/等级均由后端单一函数计算，前端不再自行重推导）
     enterpriseApi.detail(enterpriseId)
       .then((res) => {
-        const compliance = (res.data.data as Record<string, unknown>)?.compliance as Record<string, unknown> | undefined;
-        if (compliance) {
-          setComplianceReduction(typeof compliance.reduction_pct === 'number' ? compliance.reduction_pct : 0);
-          setIsFullyCompliant(Boolean(compliance.is_fully_compliant));
-        }
+        const compliance = (res.data.data as Record<string, unknown>)?.compliance as ComplianceAdjustedRisk | undefined;
+        setComplianceAdj(compliance ?? null);
       })
-      .catch(() => {});
+      .catch(() => setComplianceAdj(null));
   }, [enterpriseId, fetchLatest]);
+
+  // 降幅 / 完全合规标志（用于内控雷达、稽查概率、财务影响等联动展示）
+  const complianceReduction = complianceAdj?.reduction_pct ?? 0;
+  const isFullyCompliant = Boolean(complianceAdj?.is_fully_compliant);
 
   // 整改/重评评分演化轨迹（A1：整改前后评分对照）
   useEffect(() => {
@@ -243,30 +243,26 @@ function RiskMap() {
     [currentEnterprise, result, nbtData, complianceReduction, isFullyCompliant],
   );
 
-  // ── 合规调整后的风险评分和等级 ──
-  const adjustedRiskScore = useMemo(() => {
-    if (!result?.overall_risk_score) return 0;
-    if (isFullyCompliant) return 10;
-    return Math.round(result.overall_risk_score * (1 - complianceReduction));
-  }, [result, complianceReduction, isFullyCompliant]);
-
-  const adjustedRiskLevel = useMemo((): RiskLevel => {
-    if (isFullyCompliant) return 'low';
-    if (!result?.overall_risk_level) return 'low';
-    const score = adjustedRiskScore;
-    if (score >= 80) return 'critical';
-    if (score >= 60) return 'high';
-    if (score >= 45) return 'medium_high';
-    if (score >= 30) return 'medium';
-    return 'low';
-  }, [result, adjustedRiskScore, isFullyCompliant]);
-
-  // ── 合规得分（A3：风险分 = 100 − 合规得分，双轨展示） ──
-  const complianceScore = useMemo(() => Math.round(100 - adjustedRiskScore), [adjustedRiskScore]);
+  // ── 合规调整后的风险评分和等级（统一收口：直接消费后端 compliance，前端不再自行推导）──
   const rawRiskScore = useMemo(
     () => Math.round(result?.overall_risk_score ?? 0),
     [result?.overall_risk_score],
   );
+  const adjustedRiskScore = useMemo(
+    () => Math.round(complianceAdj?.adjusted_score ?? rawRiskScore),
+    [complianceAdj, rawRiskScore],
+  );
+  const originalRiskScore = useMemo(
+    () => Math.round(complianceAdj?.original_score ?? rawRiskScore),
+    [complianceAdj, rawRiskScore],
+  );
+  const adjustedRiskLevel = useMemo(
+    (): RiskLevel => complianceAdj?.adjusted_level ?? result?.overall_risk_level ?? 'low',
+    [complianceAdj, result?.overall_risk_level],
+  );
+
+  // ── 合规得分（A3：风险分 = 100 − 合规得分，双轨展示） ──
+  const complianceScore = useMemo(() => Math.round(100 - adjustedRiskScore), [adjustedRiskScore]);
 
   const isCritical = useMemo(
     () =>
@@ -411,9 +407,17 @@ function RiskMap() {
         >
           {RISK_LABELS[adjustedRiskLevel]}
         </span>
-        {adjustedRiskScore !== rawRiskScore && (
-          <p className="text-[10px] text-gray-400 mt-1">原始风险分 {rawRiskScore}</p>
-        )}
+        {/* 双栏：原始分 / 整改后分（统一收口口径） */}
+        <div className="mt-2 grid grid-cols-2 gap-2 text-[10px]">
+          <div className="rounded-md bg-gray-50 py-1">
+            <p className="text-gray-400">原始分</p>
+            <p className="font-bold text-gray-600">{originalRiskScore}</p>
+          </div>
+          <div className="rounded-md bg-gray-50 py-1">
+            <p className="text-gray-400">整改后分</p>
+            <p className="font-bold text-gray-600">{adjustedRiskScore}</p>
+          </div>
+        </div>
       </div>
 
       {/* 合规得分（A3：100 − 风险分） */}

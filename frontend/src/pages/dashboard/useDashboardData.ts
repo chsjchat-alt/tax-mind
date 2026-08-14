@@ -103,6 +103,12 @@ export function useDashboardData() {
     return result?.overall_risk_score ?? 0;
   }, [compliance, result]);
 
+  // ── 原始风险评分（整改前口径；统一来自后端 compliance，缺失时回退最新扫描分） ──
+  const originalRiskScore = useMemo(() => {
+    if (compliance?.original_score != null) return compliance.original_score;
+    return result?.overall_risk_score ?? 0;
+  }, [compliance, result]);
+
   // ── 风险扫描中 ──
   const isLoading = isBusy || entLoading || (!!enterpriseId && !result);
 
@@ -126,6 +132,7 @@ export function useDashboardData() {
     deviationBaseline,
     adjustedRiskLevel,
     adjustedRiskScore,
+    originalRiskScore,
     isLoading,
   };
 }

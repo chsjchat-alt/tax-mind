@@ -17,7 +17,7 @@ import { App as AntdApp } from 'antd'
 
 import Remediation from '@/pages/Remediation'
 import { useEnterpriseStore } from '@/store'
-import { remediationApi, riskScanApi, profileApi } from '@/api'
+import { remediationApi, riskScanApi, profileApi, enterpriseApi } from '@/api'
 import type { Enterprise, RemediationTask, RemediationTaskUpdateResult, ProfileResult } from '@/types'
 import type { AxiosResponse, InternalAxiosRequestConfig } from 'axios'
 
@@ -98,6 +98,9 @@ function mockTasksApi(tasks: RemediationTask[]) {
   vi.mocked(riskScanApi.list).mockResolvedValue(apiOk({ assessments: [], total: 0 }))
   vi.mocked(profileApi.latest).mockResolvedValue(
     apiOk({ deviation_index: 58 } as ProfileResult),
+  )
+  vi.mocked(enterpriseApi.detail).mockResolvedValue(
+    apiOk({ enterprise: {}, statistics: {}, compliance: null }),
   )
 }
 

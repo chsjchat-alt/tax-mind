@@ -13,6 +13,8 @@ import type { RiskLevel } from '@/types';
 interface MetricCardsProps {
   adjustedRiskLevel: RiskLevel;
   adjustedRiskScore: number;
+  /** 原始风险评分（整改前口径，用于双栏展示） */
+  originalRiskScore?: number;
   fourFlowMatchScore: number;
   deviationIndex: number | null;
   deviationBaseline: number;
@@ -35,7 +37,7 @@ function cardProps(navigate: ReturnType<typeof useNavigate>, path: string) {
 }
 
 export default function MetricCards({
-  adjustedRiskLevel, adjustedRiskScore, fourFlowMatchScore,
+  adjustedRiskLevel, adjustedRiskScore, originalRiskScore, fourFlowMatchScore,
   deviationIndex, deviationBaseline, pendingTasks,
 }: MetricCardsProps) {
   const navigate = useNavigate();
@@ -65,6 +67,12 @@ export default function MetricCards({
               {RISK_LABELS[adjustedRiskLevel]}
             </p>
             <p className="text-xs text-gray-400">{adjustedRiskScore.toFixed(0)} 分</p>
+            {/* 双栏：原始分 / 整改后分（统一收口口径，缺失或相同时隐藏） */}
+            {originalRiskScore != null && Math.round(originalRiskScore) !== Math.round(adjustedRiskScore) && (
+              <p className="text-[10px] text-gray-400 mt-0.5">
+                原始分 {Math.round(originalRiskScore)} → 整改后 {Math.round(adjustedRiskScore)}
+              </p>
+            )}
           </div>
         </div>
       </div>

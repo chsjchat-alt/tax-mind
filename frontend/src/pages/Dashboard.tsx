@@ -21,7 +21,7 @@ function Dashboard() {
     handleLoadMockData, loadingMock,
     trendData, assessments, assessLoading, pendingTasks,
     deviationIndex, deviationBaseline,
-    adjustedRiskLevel, adjustedRiskScore, isLoading,
+    adjustedRiskLevel, adjustedRiskScore, originalRiskScore, isLoading,
   } = useDashboardData();
 
   // ── 无企业选中状态 ──
@@ -95,6 +95,7 @@ function Dashboard() {
           <MetricCards
             adjustedRiskLevel={adjustedRiskLevel}
             adjustedRiskScore={adjustedRiskScore}
+            originalRiskScore={originalRiskScore}
             fourFlowMatchScore={result.four_flow_match_score}
             deviationIndex={deviationIndex}
             deviationBaseline={deviationBaseline}
