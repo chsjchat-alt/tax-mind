@@ -39,7 +39,6 @@ class InvoiceResponse(BaseModel):
     invoice_type: str
     invoice_date: date
     product_name: str
-    tax_rate: float
     amount: float
     tax_amount: float
     total_amount: float

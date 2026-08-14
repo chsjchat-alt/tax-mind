@@ -443,7 +443,6 @@ export interface Invoice {
   invoice_type: 'input' | 'output';
   invoice_date: string;
   product_name: string;
-  tax_rate: number;
   amount: number;
   tax_amount: number;
   total_amount: number;
