@@ -141,7 +141,10 @@ async def generate_report(
     try:
         report = await _build_report_content(enterprise_id, request, db, tenant_id)
 
-        # ── 合规调整：注入联动风险评分 ──
+        # ── 合规调整：显式双状态，杜绝 adjusted_level + original_score 交叉绑定 ──
+        # 全项目统一口径（审计结论落地）：
+        #   当前状态视图 = adjusted_score + adjusted_level 成对展示；
+        #   历史/审计视图 = original_score + original_level 成对展示（快照不可变）。
         try:
             base_score = None
             risk_assessment = report.get("content", {}).get("risk_assessment")
@@ -154,14 +157,10 @@ async def generate_report(
             )
             adjusted_level = compliance_adj["adjusted_level"]
 
-            # 注入到 enterprise 节
-            report["content"]["enterprise"]["compliance_adjusted_risk_level"] = adjusted_level
-
-            # 覆盖 risk_assessment.level
-            if risk_assessment and isinstance(risk_assessment, dict):
-                report["content"]["risk_assessment"]["level"] = adjusted_level
-
-            # 覆盖 content_summary.risk_level
+            # ① risk_assessment 保持原始快照（score+level 成对，审计留痕），不再覆盖
+            # ② 整改后状态独立成节（adjusted_score+adjusted_level 成对 + 降幅/整改状态）
+            report["content"]["compliance_adjusted_risk"] = compliance_adj
+            # ③ 摘要（当前状态视图）= 调整后等级
             report["content_summary"]["risk_level"] = adjusted_level
         except Exception:
             pass

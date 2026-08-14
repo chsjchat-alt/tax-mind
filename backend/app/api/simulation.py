@@ -86,26 +86,33 @@ async def run_simulation_endpoint(
     if latest:
         risk_level = latest.overall_risk_level.value
 
-    # ── 动态风险等级：从场景参数推算，覆盖静态历史数据 ──
-    scenario_risk = _compute_dynamic_risk_level(request.monthly_hidden_revenue)
-    # 取两者中更严重的等级（历史风险+当前隐匿行为叠加）
+    # ── 历史基准 = 合规调整后的当前等级（核心引擎统一分类路径） ──
+    # 整改成果已由 compute_compliance_adjusted_risk 反映在 adjusted_level 中，
+    # 模拟器不再自行引入"reduction≥0.45 降一级"的第二套分类规则（审计结论 #3：
+    # 避免核心引擎之外再出现独立降级规则导致口径漂移）。
     risk_order = ["low", "medium", "medium_high", "high", "critical"]
-    historical_idx = risk_order.index(risk_level)
-    scenario_idx = risk_order.index(scenario_risk)
-    effective_risk = risk_order[max(historical_idx, scenario_idx)]
-
-    # ── 合规调整：已完成整改任务降低有效风险等级 ──
     try:
         compliance = await compute_compliance_adjusted_risk(db, ent_id)
-        if compliance["reduction_pct"] >= 0.45:
-            # 大幅降低了合规风险 → 下调一个等级
-            compliance_idx = max(0, risk_order.index(effective_risk) - 1)
-            effective_risk = risk_order[compliance_idx]
-            _logger.info("模拟器合规调整: effective_risk %s -> %s (reduction=%.0f%%)",
-                         risk_order[max(historical_idx, scenario_idx)], effective_risk,
-                         compliance["reduction_pct"] * 100)
+        base_level = compliance["adjusted_level"]
     except Exception:
-        pass
+        compliance = None
+        base_level = risk_level
+    if base_level not in risk_order:
+        base_level = risk_level
+    if risk_level not in risk_order:
+        risk_level = "low"
+
+    # ── 动态风险等级：从场景参数推算，叠加当前基线 ──
+    scenario_risk = _compute_dynamic_risk_level(request.monthly_hidden_revenue)
+    # 取两者中更严重的等级（当前合规状态 + 场景隐匿行为叠加）
+    historical_idx = risk_order.index(base_level)
+    scenario_idx = risk_order.index(scenario_risk)
+    effective_risk = risk_order[max(historical_idx, scenario_idx)]
+    if compliance is not None and compliance.get("reduction_pct"):
+        _logger.info(
+            "模拟器基准: raw=%s → adjusted=%s（reduction=%.0f%%）→ 叠加场景后 effective=%s",
+            risk_level, base_level, compliance["reduction_pct"] * 100, effective_risk,
+        )
 
     # ── 企业基础信息（用于增强模块） ──
     ent_name = enterprise.name or ""

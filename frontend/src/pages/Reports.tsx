@@ -12,7 +12,7 @@ import {
   ColumnHeightOutlined,
 } from '@ant-design/icons';
 import type { Report, ReportContent, RiskLevel } from '@/types';
-import { RISK_COLORS, BIAS_LABELS } from '@/types';
+import { RISK_COLORS, RISK_LABELS, BIAS_LABELS } from '@/types';
 
 function Reports() {
   const { message } = App.useApp();
@@ -199,7 +199,7 @@ function Reports() {
           ═══════════════════════════════════════ */}
       {risk ? (
         <div className="space-y-5">
-          {/* ── 风险等级 Hero Banner ── */}
+          {/* ── 风险等级 Hero Banner（原始快照：level+score 成对展示） ── */}
           <RiskHeroBanner
             level={(risk.level as RiskLevel) || 'low'}
             score={risk.score}
@@ -208,6 +208,60 @@ function Reports() {
             costDeviation={risk.cost_deviation}
             enterpriseName={content.enterprise.name}
           />
+
+          {/* ── 整改前后风险对比（显式双状态，杜绝 adjusted_level+original_score 混搭） ── */}
+          {content.compliance_adjusted_risk && (() => {
+            const adj = content.compliance_adjusted_risk;
+            const origLevel = (adj.original_level ?? risk.level ?? 'low') as RiskLevel;
+            const origScore = Math.round(adj.original_score ?? risk.score ?? 0);
+            const adjScore = Math.round(adj.adjusted_score);
+            const adjLevel = adj.adjusted_level as RiskLevel;
+            const delta = origScore - adjScore;
+            const hasDelta = delta !== 0;
+            return (
+              <Card
+                title="整改前后风险对比"
+                className="rounded-xl"
+                size="small"
+                extra={
+                  adj.is_fully_compliant
+                    ? <Tag color="green">完全合规</Tag>
+                    : <Tag color={adj.veto_reason ? 'red' : 'blue'}>
+                        已完成 {adj.completion_count} 项合规整改
+                      </Tag>
+                }
+              >
+                {adj.veto_reason && (
+                  <div className="mb-3 text-xs text-red-500">
+                    一票否决：{adj.veto_reason}（修复加分不计，整改不降分）
+                  </div>
+                )}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="rounded-lg bg-gray-50 border border-gray-200 p-3">
+                    <p className="text-[11px] text-gray-400 mb-1">原始风险（评估快照）</p>
+                    <p className="text-lg font-bold" style={{ color: RISK_COLORS[origLevel] }}>
+                      {origScore} 分 · {RISK_LABELS[origLevel] ?? origLevel}
+                    </p>
+                  </div>
+                  <div className="rounded-lg bg-gray-50 border border-gray-200 p-3 flex flex-col justify-center items-center">
+                    <p className="text-[11px] text-gray-400 mb-1">整改后风险（当前状态）</p>
+                    <p className="text-lg font-bold" style={{ color: RISK_COLORS[adjLevel] }}>
+                      {hasDelta ? `↓ ${adjScore} 分 · ${RISK_LABELS[adjLevel] ?? adjLevel}` : `${adjScore} 分 · ${RISK_LABELS[adjLevel] ?? adjLevel}`}
+                    </p>
+                  </div>
+                  <div className="rounded-lg bg-gray-50 border border-gray-200 p-3">
+                    <p className="text-[11px] text-gray-400 mb-1">风险降幅</p>
+                    <p className={`text-lg font-bold ${hasDelta ? 'text-green-600' : 'text-gray-500'}`}>
+                      {hasDelta ? `−${delta} 分` : '无变化'}
+                    </p>
+                    <p className="text-[11px] text-gray-400 mt-0.5">
+                      {hasDelta ? `(${Math.round((delta / Math.max(origScore, 1)) * 100)}%)` : '当前无整改或已完全合规'}
+                    </p>
+                  </div>
+                </div>
+              </Card>
+            );
+          })()}
 
           {/* ── 核心指标速览 ── */}
           <div>

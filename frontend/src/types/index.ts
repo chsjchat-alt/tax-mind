@@ -635,6 +635,12 @@ export interface ReportContent {
     recommendations: Record<string, unknown>;
     date: string | null;
   } | null;
+  /**
+   * 整改后风险状态（后端 compute_compliance_adjusted_risk 显式双状态节）。
+   * 规则：当前状态视图 = adjusted_score+adjusted_level 成对；
+   *      risk_assessment 保持原始快照（original score+level 成对），不再交叉绑定。
+   */
+  compliance_adjusted_risk?: ComplianceAdjustedRisk & { veto_reason?: string | null };
   profile: {
     id: string;
     deviation_index: number;

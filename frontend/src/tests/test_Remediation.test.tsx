@@ -100,7 +100,9 @@ function mockTasksApi(tasks: RemediationTask[]) {
     apiOk({ deviation_index: 58 } as ProfileResult),
   )
   vi.mocked(enterpriseApi.detail).mockResolvedValue(
-    apiOk({ enterprise: {}, statistics: {}, compliance: null }),
+    apiOk({ enterprise: {}, statistics: {}, compliance: null }) as unknown as Awaited<
+      ReturnType<typeof enterpriseApi.detail>
+    >,
   )
 }
 
