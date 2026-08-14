@@ -343,6 +343,24 @@ async def get_intervention(
         deviation_index = float(latest_profile.deviation_index or 0)
         dominant_biases = _derive_dominant_biases(latest_profile, enterprise)
 
+    # 合规调整 → 干预输入改用调整后等级/分数（与展示链路联动，避免"面板显示低风险、话术说高风险"）
+    compliance_adj = await _get_compliance_adjustment(
+        db,
+        ent_id,
+        base_score=(
+            float(latest_risk.overall_risk_score or 0) if latest_risk else 0.0
+        ),
+        compliance_findings_count=(
+            _count_findings(latest_risk.risk_details) if latest_risk else None
+        ),
+    )
+    input_risk_level = (
+        compliance_adj["adjusted_level"] if compliance_adj else risk_level
+    )
+    input_risk_score = (
+        compliance_adj["adjusted_score"] if compliance_adj else None
+    )
+
     # 估算预期损失和整改成本
     rev_annual = float(enterprise.revenue_annual or 1000000)
     expected_loss = rev_annual * 0.05
@@ -350,23 +368,19 @@ async def get_intervention(
 
     intervention = generate_intervention(
         InterventionInput(
-            risk_level=risk_level,
+            risk_level=input_risk_level,
+            risk_score=input_risk_score,
             deviation_index=deviation_index,
             dominant_biases=dominant_biases,
             audit_probability=(
-                0.3 if risk_level == "high"
-                else 0.1 if risk_level == "medium"
+                0.3 if input_risk_level in ("high", "critical")
+                else 0.15 if input_risk_level == "medium_high"
+                else 0.1 if input_risk_level == "medium"
                 else 0.05
             ),
             expected_loss=expected_loss,
             remediation_cost=remediation_cost,
         )
-    )
-
-    compliance_adj = await _get_compliance_adjustment(
-        db,
-        ent_id,
-        base_score=float(latest_risk.overall_risk_score or 0) if latest_risk else 0.0,
     )
 
     return success_response(

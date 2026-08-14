@@ -354,6 +354,8 @@ export interface InterventionResult {
   technical_summary: string;
   priority_bias: string;
   priority_order: string[];
+  /** 合规调整后的风险等级（与展示链路联动，五级；缺失时回退企业详情等级） */
+  compliance_risk_level?: RiskLevel | null;
 }
 
 // ── NBT 三层行为干预 ──

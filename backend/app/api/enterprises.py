@@ -9,6 +9,7 @@ DELETE /api/v1/enterprises/{id}         删除企业（租户隔离校验）
 """
 import asyncio
 import logging
+from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends
@@ -40,6 +41,28 @@ from app.core.compliance_adjustment import (
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/enterprises", tags=["企业管理"])
+
+
+def _count_findings(risk_details: Any) -> int:
+    """统计风险明细中的正向发现数（正数数值键计为 1 个发现）。"""
+    if not isinstance(risk_details, dict):
+        return 0
+    return sum(
+        1 for v in risk_details.values() if isinstance(v, (int, float)) and v > 0
+    )
+
+
+async def _get_latest_risk_assessment(
+    db: AsyncSession,
+    enterprise_id: str,
+) -> RiskAssessment | None:
+    result = await db.execute(
+        select(RiskAssessment)
+        .where(RiskAssessment.enterprise_id == enterprise_id)
+        .order_by(RiskAssessment.assessment_date.desc())
+        .limit(1)
+    )
+    return result.scalar_one_or_none()
 
 
 @router.get("")
@@ -77,7 +100,19 @@ async def list_enterprises(
     if summaries:
         try:
             ids = [str(s.id) for s in summaries]
-            adjusted_map = await compute_compliance_adjusted_risks(db, ids)
+            # 批量加载各企业最新一次评估的发现数（一次查询，消除 N+1）
+            findings_counts: dict[str, int] = {}
+            ra_result = await db.execute(
+                select(RiskAssessment)
+                .where(RiskAssessment.enterprise_id.in_(ids))
+                .order_by(RiskAssessment.assessment_date.desc())
+            )
+            for ra in ra_result.scalars().all():
+                if ra.enterprise_id not in findings_counts:
+                    findings_counts[ra.enterprise_id] = _count_findings(ra.risk_details)
+            adjusted_map = await compute_compliance_adjusted_risks(
+                db, ids, compliance_findings_counts=findings_counts,
+            )
             for summary in summaries:
                 adj = adjusted_map.get(str(summary.id))
                 if adj:
@@ -143,12 +178,20 @@ async def get_enterprise(
     counts = await asyncio.gather(*(_count(m) for m, _ in models))
     stats = {label: cnt for (_, label), cnt in zip(models, counts)}
 
-    # ── 合规调整 → 注入联动风险等级 ──
+    # ── 合规调整 → 注入联动风险等级（传入最新评估分与发现数，完全合规 LOW 全链路生效）──
     compliance_adj = None
     try:
+        latest_risk = await _get_latest_risk_assessment(db, str(enterprise_id))
         compliance_adj = await compute_compliance_adjusted_risk(
             db, str(enterprise_id),
-            base_score=None,
+            base_score=(
+                float(latest_risk.overall_risk_score)
+                if latest_risk and latest_risk.overall_risk_score is not None
+                else None
+            ),
+            compliance_findings_count=(
+                _count_findings(latest_risk.risk_details) if latest_risk else None
+            ),
         )
     except Exception as exc:
         logger.warning("企业详情合规调整计算失败 enterprise=%s: %s", enterprise_id, exc)

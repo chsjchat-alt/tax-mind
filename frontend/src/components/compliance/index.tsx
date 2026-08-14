@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { CheckCircleOutlined, CloseCircleOutlined, RightOutlined, SafetyCertificateOutlined, FileTextOutlined, BulbOutlined, ThunderboltOutlined, AimOutlined, ApartmentOutlined } from '@ant-design/icons';
 import { Progress, Tag, Tooltip } from 'antd';
-import { RISK_COLORS } from '@/types';
+import { RISK_COLORS, RISK_LABELS } from '@/types';
 import { TableContainer } from '@/components/common';
 import type { RiskLevel, TaxPreferenceResult, InterventionResult } from '@/types';
 
@@ -761,7 +761,7 @@ function getActionGuidance(riskLevel: RiskLevel): { step: string; detail: string
     { step: '数据补录', detail: '整理并补充历史票据、合同、银行流水等合规凭证', timeline: '60天内' },
     { step: '定期自查', detail: '每季度执行风险扫描，跟踪各维度风险评分变化趋势', timeline: '持续进行' },
   ];
-  if (riskLevel === 'high') {
+  if (riskLevel === 'high' || riskLevel === 'critical') {
     baseSteps.unshift({
       step: '紧急止损',
       detail: '立即停止高风险行为（如私卡收款、大额公转私无合理商业目的），准备主动补申报材料',
@@ -779,10 +779,12 @@ export function InterventionNarrativePanel({
     (num) => intervention.layers.find((l) => l.layer === Number(num))!
   ).filter(Boolean);
 
-  const actions = getActionGuidance(riskLevel);
-  const isHigh = riskLevel === 'high';
-  const isMedium = riskLevel === 'medium';
-  const riskLabel = isHigh ? '高风险' : isMedium ? '中风险' : '低风险';
+  // ── 完整五档映射：优先消费后端 compliance_risk_level（调整后等级），缺失回退企业详情等级 ──
+  const panelRiskLevel: RiskLevel = intervention.compliance_risk_level ?? riskLevel;
+  const actions = getActionGuidance(panelRiskLevel);
+  const isHigh = panelRiskLevel === 'high' || panelRiskLevel === 'critical';
+  const isMedium = panelRiskLevel === 'medium' || panelRiskLevel === 'medium_high';
+  const riskLabel = RISK_LABELS[panelRiskLevel] ?? '低风险';
 
   // ── 主导偏差中文名 ──
   const priorityBiasLabel = intervention.priority_bias === 'optimism_bias' ? '乐观偏差'

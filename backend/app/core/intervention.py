@@ -107,7 +107,11 @@ INTERVENTION_TEMPLATES = {
 
 class InterventionInput(BaseModel):
     """干预输入"""
-    risk_level: str = Field(..., description="风险等级 low/medium/high")
+    risk_level: str = Field(..., description="风险等级（五级）low/medium/medium_high/high/critical")
+    risk_score: float | None = Field(
+        default=None, ge=0, le=100,
+        description="调整后风险评分（传入则直接作为干预风险分，覆盖等级推算）",
+    )
     deviation_index: float = Field(..., ge=0, le=100, description="综合偏差指数")
     dominant_biases: list[str] = Field(default_factory=list, description="主导偏差类型列表")
     audit_probability: float = Field(..., ge=0, le=1, description="稽查概率")
@@ -133,15 +137,27 @@ class InterventionResult(BaseModel):
 
 
 def _calculate_risk_score(risk_level: str, deviation_index: float) -> float:
-    """综合风险评分"""
-    level_multiplier = {"low": 0.3, "medium": 1.0, "high": 2.0}
+    """综合风险评分（五级阶梯，覆盖前端 RiskLevel 全部档位）"""
+    level_multiplier = {
+        "low": 0.3,
+        "medium": 1.0,
+        "medium_high": 1.5,
+        "high": 2.0,
+        "critical": 2.5,
+    }
     multiplier = level_multiplier.get(risk_level, 1.0)
     return min(100.0, round(deviation_index * multiplier, 1))
 
 
 def _get_risk_label(risk_level: str) -> str:
-    """风险等级中文标签"""
-    return {"low": "低风险", "medium": "中风险", "high": "高风险"}.get(risk_level, "未知")
+    """风险等级中文标签（五级）"""
+    return {
+        "low": "低风险",
+        "medium": "中风险",
+        "medium_high": "中高风险",
+        "high": "高风险",
+        "critical": "严重风险",
+    }.get(risk_level, "未知")
 
 
 def _adjust_priority(dominant_biases: list[str]) -> list[int]:
@@ -207,7 +223,11 @@ def generate_intervention(data: InterventionInput) -> InterventionResult:
       - 偏差指数为0：所有干预内容仍生成但语气更温和
       - 稽查概率为0：第一层干预使用保守语言
     """
-    risk_score = _calculate_risk_score(data.risk_level, data.deviation_index)
+    risk_score = (
+        data.risk_score
+        if data.risk_score is not None
+        else _calculate_risk_score(data.risk_level, data.deviation_index)
+    )
     risk_label = _get_risk_label(data.risk_level)
 
     # 格式化参数

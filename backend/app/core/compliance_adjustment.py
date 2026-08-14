@@ -11,6 +11,7 @@
 """
 import logging
 from decimal import Decimal
+from typing import Any
 
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -22,30 +23,63 @@ from app.core.credit_veto import resolve_tax_credit_veto
 
 _logger = logging.getLogger(__name__)
 
-# ── 风险评分阈值 ──
-RISK_THRESHOLDS = [
-    (80, AssessRiskLevel.CRITICAL),
-    (60, AssessRiskLevel.HIGH),
-    (45, AssessRiskLevel.MEDIUM),
-    (30, AssessRiskLevel.MEDIUM),  # medium_high → mapped to medium for simplicity
-    (0, AssessRiskLevel.LOW),
-]
+# ── 风险评分阈值（默认值；与 risk_config 键一一对应，可配置化）──
+DEFAULT_THRESHOLDS: dict[str, float] = {
+    "critical": 80.0,
+    "high": 60.0,
+    "medium_high": 45.0,
+    "medium": 30.0,
+}
 
 
-def score_to_level(score: float) -> AssessRiskLevel:
-    """将评分映射到风险等级"""
-    for threshold, level in RISK_THRESHOLDS:
-        if score >= threshold:
-            return level
+def _load_thresholds(config: dict[str, Any]) -> dict[str, float]:
+    """从 risk_config 读取五级阈值（缺键回退代码内默认值）。"""
+    return {
+        "critical": float(
+            config.get("risk_critical_threshold", DEFAULT_THRESHOLDS["critical"])
+        ),
+        "high": float(
+            config.get("risk_high_level_threshold", DEFAULT_THRESHOLDS["high"])
+        ),
+        "medium_high": float(
+            config.get("risk_medium_high_threshold", DEFAULT_THRESHOLDS["medium_high"])
+        ),
+        "medium": float(
+            config.get("risk_medium_level_threshold", DEFAULT_THRESHOLDS["medium"])
+        ),
+    }
+
+
+def score_to_level(
+    score: float,
+    thresholds: dict[str, float] | None = None,
+) -> AssessRiskLevel:
+    """将评分映射到风险等级（内部四档枚举；中档由 level_to_frontend 细分为 medium/medium_high）"""
+    th = thresholds or DEFAULT_THRESHOLDS
+    if score >= th["critical"]:
+        return AssessRiskLevel.CRITICAL
+    if score >= th["high"]:
+        return AssessRiskLevel.HIGH
+    if score >= th["medium"]:
+        return AssessRiskLevel.MEDIUM
     return AssessRiskLevel.LOW
 
 
-def level_to_frontend(level: AssessRiskLevel) -> str:
+def level_to_frontend(
+    level: AssessRiskLevel,
+    score: float | None = None,
+    thresholds: dict[str, float] | None = None,
+) -> str:
     """映射到前端 RiskLevel 类型（五级）"""
+    th = thresholds or DEFAULT_THRESHOLDS
+    if level == AssessRiskLevel.MEDIUM:
+        # 分 < medium_high 阈值为中风险(medium)，否则为中高风险(medium_high)
+        if score is None or score >= th["medium_high"]:
+            return "medium_high"
+        return "medium"
     mapping = {
         AssessRiskLevel.CRITICAL: "critical",
         AssessRiskLevel.HIGH: "high",
-        AssessRiskLevel.MEDIUM: "medium_high",
         AssessRiskLevel.LOW: "low",
     }
     return mapping.get(level, "medium")
@@ -88,11 +122,12 @@ async def compute_compliance_adjusted_risk(
         if enterprise is not None else None
     )
 
-    # 0.5 修复加分参数（B1 配置化：每任务降幅 / 降幅上限）
+    # 0.5 修复加分参数（B1 配置化：每任务降幅 / 降幅上限 / 五级阈值）
     from app.core.risk_config import get_risk_config
     _config = await get_risk_config(db)
     pct_per_task = _config.get("reduction_pct_per_task", 0.15)
     pct_max = _config.get("reduction_pct_max", 0.80)
+    thresholds = _load_thresholds(_config)
 
     # 1. 查询已完成的合规整改任务
     completed_result = await db.execute(
@@ -131,8 +166,12 @@ async def compute_compliance_adjusted_risk(
         adjusted_score = raw_score * (1.0 - reduction_pct)
 
     # 5. 确定风险等级
-    adjusted_level_enum = score_to_level(adjusted_score) if not is_fully_compliant else AssessRiskLevel.LOW
-    adjusted_level = level_to_frontend(adjusted_level_enum)
+    adjusted_level_enum = (
+        score_to_level(adjusted_score, thresholds)
+        if not is_fully_compliant
+        else AssessRiskLevel.LOW
+    )
+    adjusted_level = level_to_frontend(adjusted_level_enum, adjusted_score, thresholds)
 
     _logger.info(
         "合规调整 | enterprise=%s | base=%.1f | completed=%d | reduction=%.0f%% | adjusted=%.1f (%s) | fully_compliant=%s | veto=%s",
@@ -175,11 +214,12 @@ async def compute_compliance_adjusted_risks(
             ent.tax_credit_level, ent.tax_crime_convicted,
         )
 
-    # 0.5 修复加分参数（B1 配置化）
+    # 0.5 修复加分参数（B1 配置化：每任务降幅 / 降幅上限 / 五级阈值）
     from app.core.risk_config import get_risk_config
     _config = await get_risk_config(db)
     pct_per_task = _config.get("reduction_pct_per_task", 0.15)
     pct_max = _config.get("reduction_pct_max", 0.80)
+    thresholds = _load_thresholds(_config)
 
     # 一次聚合查询所有企业的已完成合规任务数
     result = await db.execute(
@@ -221,11 +261,13 @@ async def compute_compliance_adjusted_risks(
         adjusted_level_enum = (
             AssessRiskLevel.LOW
             if is_fully_compliant
-            else score_to_level(adjusted_score)
+            else score_to_level(adjusted_score, thresholds)
         )
         adjusted[eid] = {
             "adjusted_score": round(adjusted_score, 2),
-            "adjusted_level": level_to_frontend(adjusted_level_enum),
+            "adjusted_level": level_to_frontend(
+                adjusted_level_enum, adjusted_score, thresholds
+            ),
             "completion_count": completion_count,
             "is_fully_compliant": is_fully_compliant,
             "reduction_pct": round(reduction_pct, 4),
