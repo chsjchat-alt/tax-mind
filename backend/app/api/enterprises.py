@@ -209,6 +209,12 @@ async def update_enterprise(
     for key, value in update_data.items():
         setattr(enterprise, key, value)
 
+    # 一票否决输入变化（纳税信用等级 / 涉税犯罪标志）→ 失效风险扫描缓存，
+    # 确保下次扫描按新口径重新计算（2025 年第 12 号直接判 D 语义）
+    if {"tax_credit_level", "tax_crime_convicted"} & set(update_data.keys()):
+        from app.core.cache import risk_scan_cache
+        await risk_scan_cache.invalidate(f"scan:{str(enterprise_id)}")
+
     await db.flush()
     await db.refresh(enterprise)
 

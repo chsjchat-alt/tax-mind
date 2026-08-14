@@ -113,6 +113,18 @@ class Enterprise(Base):
         comment="内控体系是否系统性崩溃（四流匹配<40%且连续3期高风险即触发）",
     )
 
+    # ── 一票否决输入（纳税信用 / 涉税犯罪）──
+    # 依据：《纳税缴费信用管理办法》国家税务总局公告 2025 年第 12 号（直接判D）
+    #       《刑法》第 201 条（逃税罪刑事红线）
+    tax_credit_level: Mapped[str | None] = mapped_column(
+        String(2), nullable=True, default=None,
+        comment="纳税信用等级（A/B/C/D，2025 年第 12 号）；D 级触发一票否决",
+    )
+    tax_crime_convicted: Mapped[bool] = mapped_column(
+        Boolean, default=False, nullable=False,
+        comment="是否因涉税犯罪（《刑法》第 201 条）被生效判决；触发一票否决",
+    )
+
     # ── 多维风险评级 ──
     risk_level: Mapped[RiskLevelEnhanced] = mapped_column(
         SAEnum(RiskLevelEnhanced, name="risk_level_enhanced_enum",
@@ -174,6 +186,9 @@ class Enterprise(Base):
     )
     remediation_tasks = relationship(
         "RemediationTask", back_populates="enterprise",
+    )
+    risk_score_trajectories = relationship(
+        "RiskScoreTrajectory", back_populates="enterprise",
     )
     accounting_vouchers = relationship(
         "AccountingVoucher", back_populates="enterprise",

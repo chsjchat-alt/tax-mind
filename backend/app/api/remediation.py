@@ -75,13 +75,16 @@ async def _perform_risk_reassessment(
         # 4. 补充财务数据
         await RiskScanService.enrich_with_financials(db, enterprise_id, risk_input)
 
-        # 5. 执行风险扫描
+        # 5. 执行风险扫描（B1：读取参数配置，未配置回退引擎默认值）
+        from app.core.risk_config import get_risk_config
+        config = await get_risk_config(db)
         risk_result = assess_enterprise_risk(
             risk_input,
             contracts=ct_records,
             invoices=inv_records,
             bank_transactions=bk_records,
             has_tax_preference=ent.is_small_micro or ent.is_high_tech,
+            config=config,
         )
 
         # 6. 四流匹配
@@ -92,6 +95,26 @@ async def _perform_risk_reassessment(
             db, enterprise_id, risk_result, ffm_result,
             risk_input=risk_input, transactions=txs,
         )
+
+        # 7.5 记录评分轨迹（整改完成 → 前后演化证据链，B3）
+        try:
+            await RiskScanService.record_score_trajectory(
+                db, enterprise_id,
+                after_score=float(assessment.overall_risk_score),
+                after_level=str(assessment.overall_risk_level.value),
+                before_score=(
+                    float(before_assessment.overall_risk_score)
+                    if before_assessment else None
+                ),
+                before_level=(
+                    str(before_assessment.overall_risk_level.value)
+                    if before_assessment else None
+                ),
+                changed_by="remediation",
+                reason=f"整改任务完成（{task_id}），触发风险重评估",
+            )
+        except Exception:
+            logger.exception("评分轨迹写入失败 (task_id=%s)", task_id)
 
         after_data = RiskAssessmentResponse.model_validate(assessment).model_dump()
 

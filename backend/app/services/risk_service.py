@@ -17,6 +17,7 @@ from app.models.tax_declaration import TaxDeclaration
 from app.models.contract import Contract
 from app.models.financial_statement import FinancialStatement
 from app.models.risk_assessment import RiskAssessment, AssessRiskLevel
+from app.models.risk_score_trajectory import RiskScoreTrajectory
 from app.core.risk_engine import assess_enterprise_risk, EnterpriseRiskInput
 from app.core.four_flow_match import (
     calculate_four_flow_match,
@@ -132,6 +133,8 @@ class RiskScanService:
             total_revenue=total_declared if total_declared > 0 else Decimal(str(enterprise.revenue_annual)),
             total_input_invoice=total_input,
             total_output_invoice=total_output,
+            tax_credit_level=enterprise.tax_credit_level,
+            tax_crime_convicted=enterprise.tax_crime_convicted,
         ), contract_records, invoice_records, bank_records
 
     @staticmethod
@@ -253,6 +256,67 @@ class RiskScanService:
             select(RiskAssessment).where(RiskAssessment.id == assessment_id)
         )
         return result.scalar_one_or_none()
+
+    # ── 风险评分轨迹（B3 持久化，支撑整改前后演化展示）──
+
+    @staticmethod
+    def _level_jump(before_level: str | None, after_level: str) -> str:
+        """根据前后等级确定跃迁方向（up 恶化 / down 改善 / same 不变）。"""
+        order = {"low": 0, "medium": 1, "medium_high": 2, "high": 3, "critical": 4}
+        before_idx = order.get(before_level or "low", 0)
+        after_idx = order.get(after_level, 0)
+        if after_idx > before_idx:
+            return "up"
+        if after_idx < before_idx:
+            return "down"
+        return "same"
+
+    @staticmethod
+    async def record_score_trajectory(
+        db: AsyncSession,
+        enterprise_id: str,
+        after_score: float,
+        after_level: str,
+        changed_by: str,
+        reason: str = "",
+        before_score: float | None = None,
+        before_level: str | None = None,
+        assessment_date: datetime | None = None,
+    ) -> RiskScoreTrajectory:
+        """记录一条评分轨迹（整改完成 / 例行重评时调用）。"""
+        trajectory = RiskScoreTrajectory(
+            enterprise_id=enterprise_id,
+            assessment_date=assessment_date or datetime.now(timezone.utc),
+            before_score=(
+                Decimal(str(round(before_score, 2)))
+                if before_score is not None else None
+            ),
+            after_score=Decimal(str(round(after_score, 2))),
+            before_level=before_level,
+            after_level=after_level,
+            level_jump=RiskScanService._level_jump(before_level, after_level),
+            changed_by=changed_by,
+            reason=reason[:500],
+        )
+        db.add(trajectory)
+        await db.flush()
+        await db.refresh(trajectory)
+        return trajectory
+
+    @staticmethod
+    async def list_score_trajectory(
+        db: AsyncSession, enterprise_id: str, limit: int = 50, offset: int = 0
+    ) -> tuple[list[RiskScoreTrajectory], int]:
+        """获取企业的评分演化轨迹（按时间倒序）。"""
+        query = select(RiskScoreTrajectory).where(
+            RiskScoreTrajectory.enterprise_id == enterprise_id
+        ).order_by(RiskScoreTrajectory.assessment_date.desc())
+
+        count_query = select(func.count()).select_from(query.subquery())
+        total = (await db.execute(count_query)).scalar() or 0
+
+        result = await db.execute(query.offset(offset).limit(limit))
+        return list(result.scalars().all()), total
 
 
 risk_scan_service = RiskScanService()

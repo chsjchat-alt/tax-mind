@@ -18,6 +18,14 @@ class EnterpriseCreate(BaseModel):
     is_high_tech: bool = Field(default=False, description="是否高新技术企业")
     is_small_micro: bool = Field(default=True, description="是否小微企业")
     risk_level: str = Field(default="low", description="当前风险等级（low/medium/high）")
+    tax_credit_level: Optional[str] = Field(
+        None, pattern="^[A-Da-d]$", max_length=1,
+        description="纳税信用等级（A/B/C/D，2025 年第 12 号）；D 级触发一票否决",
+    )
+    tax_crime_convicted: bool = Field(
+        default=False,
+        description="是否因涉税犯罪（《刑法》第 201 条）被生效判决；触发一票否决",
+    )
 
 
 class EnterpriseUpdate(BaseModel):
@@ -31,6 +39,14 @@ class EnterpriseUpdate(BaseModel):
     is_high_tech: Optional[bool] = None
     is_small_micro: Optional[bool] = None
     risk_level: Optional[str] = None
+    tax_credit_level: Optional[str] = Field(
+        None, pattern="^[A-Da-d]$", max_length=1,
+        description="纳税信用等级（A/B/C/D，2025 年第 12 号）；D 级触发一票否决",
+    )
+    tax_crime_convicted: Optional[bool] = Field(
+        None,
+        description="是否因涉税犯罪（《刑法》第 201 条）被生效判决；触发一票否决",
+    )
 
 
 class EnterpriseResponse(BaseModel):
@@ -46,6 +62,12 @@ class EnterpriseResponse(BaseModel):
     is_high_tech: bool
     is_small_micro: bool
     risk_level: str
+    tax_credit_level: Optional[str] = Field(
+        None, description="纳税信用等级（A/B/C/D，2025 年第 12 号）",
+    )
+    tax_crime_convicted: bool = Field(
+        default=False, description="是否涉税犯罪生效判决",
+    )
     created_at: datetime
     updated_at: datetime
 

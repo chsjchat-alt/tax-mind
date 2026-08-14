@@ -11,6 +11,8 @@ from app.models.accounting_voucher import AccountingVoucher, JournalEntry, Vouch
 from app.models.risk_assessment import RiskAssessment, AssessRiskLevel
 from app.models.psychological_profile import PsychologicalProfile
 from app.models.remediation_task import RemediationTask, TaskPriority, TaskStatus
+from app.models.risk_score_trajectory import RiskScoreTrajectory
+from app.models.risk_config import RiskConfig
 from app.models.user import User
 from app.models.audit_log import AuditLog
 
@@ -42,6 +44,8 @@ __all__ = [
     "RemediationTask",
     "TaskPriority",
     "TaskStatus",
+    "RiskScoreTrajectory",
+    "RiskConfig",
     "User",
     "AuditLog",
 ]

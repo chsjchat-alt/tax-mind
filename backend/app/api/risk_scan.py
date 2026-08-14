@@ -6,9 +6,10 @@ GET  /api/v1/enterprises/{id}/risk-assessments         获取风险评估历史
 GET  /api/v1/enterprises/{id}/risk-assessments/latest  获取最新风险评估
 GET  /api/v1/risk-assessments/{id}                     获取风险评估详情
 """
+import logging
 from uuid import UUID
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import (
@@ -21,10 +22,13 @@ from app.core.four_flow_match import calculate_four_flow_match
 from app.models.user import User
 from app.schemas.risk_scan import (
     RiskScanResponse, RiskSnapshotResponse, RiskAssessmentResponse,
+    RiskScoreTrajectoryResponse,
 )
 from app.services.risk_service import RiskScanService
 
 router = APIRouter(tags=["风险扫描"])
+
+logger = logging.getLogger("risk_scan_router")
 
 
 @router.post("/enterprises/{enterprise_id}/risk-scan")
@@ -57,23 +61,44 @@ async def perform_risk_scan(
     # 3. 补充财务数据
     await RiskScanService.enrich_with_financials(db, ent_id, risk_input)
 
-    # 4. 执行风险扫描
+    # 4. 执行风险扫描（B1：读取参数配置，未配置回退引擎默认值）
+    from app.core.risk_config import get_risk_config
+    config = await get_risk_config(db)
     risk_result = assess_enterprise_risk(
         risk_input,
         contracts=ct_records,
         invoices=inv_records,
         bank_transactions=bk_records,
         has_tax_preference=ent.is_small_micro or ent.is_high_tech,
+        config=config,
     )
 
     # 5. 四流匹配
     ffm_result = calculate_four_flow_match(ct_records, inv_records, bk_records)
+
+    # 5.5 取整改前最近一次评估（用于评分演化轨迹）
+    before_assessment = await RiskScanService.get_latest_assessment(db, ent_id)
 
     # 6. 持久化
     assessment = await RiskScanService.save_assessment(
         db, ent_id, risk_result, ffm_result,
         risk_input=risk_input, transactions=txs,
     )
+
+    # 6.5 记录评分轨迹（例行重评前后演化，B3）
+    if before_assessment is not None:
+        try:
+            await RiskScanService.record_score_trajectory(
+                db, ent_id,
+                after_score=float(risk_result.overall_risk_score),
+                after_level=str(risk_result.overall_risk_level),
+                before_score=float(before_assessment.overall_risk_score),
+                before_level=str(before_assessment.overall_risk_level.value),
+                changed_by="risk_scan",
+                reason="例行风险扫描（重评估）",
+            )
+        except Exception:
+            logger.exception("评分轨迹写入失败 enterprise=%s", ent_id)
 
     # 7. 构建响应
     total_rev = float(risk_input.total_revenue)
@@ -176,3 +201,27 @@ async def get_risk_assessment_detail(
     return success_response(
         RiskAssessmentResponse.model_validate(assessment).model_dump()
     )
+
+
+@router.get("/enterprises/{enterprise_id}/risk-score-trajectory")
+async def list_risk_score_trajectory(
+    enterprise_id: UUID,
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_viewer),
+):
+    """获取企业风险评分演化轨迹（整改/重评估前后对比证据链）"""
+    # 租户隔离校验
+    await get_enterprise_or_403(str(enterprise_id), current_user, db)
+
+    trajectories, total = await RiskScanService.list_score_trajectory(
+        db, str(enterprise_id), limit, offset
+    )
+    return success_response({
+        "trajectories": [
+            RiskScoreTrajectoryResponse.model_validate(t).model_dump()
+            for t in trajectories
+        ],
+        "total": total,
+    })

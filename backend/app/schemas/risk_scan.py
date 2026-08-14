@@ -59,3 +59,25 @@ class RiskAssessmentResponse(BaseModel):
 class RiskAssessmentHistoryResponse(BaseModel):
     assessments: list[RiskAssessmentResponse]
     total: int
+
+
+class RiskScoreTrajectoryResponse(BaseModel):
+    """风险评分轨迹记录（整改/重评估前后演化）"""
+    id: str
+    enterprise_id: str
+    assessment_date: datetime
+    before_score: Optional[float] = None
+    after_score: float
+    before_level: Optional[str] = None
+    after_level: str
+    level_jump: str  # up / down / same
+    changed_by: str  # remediation / risk_scan
+    reason: str
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class RiskScoreTrajectoryListResponse(BaseModel):
+    trajectories: list[RiskScoreTrajectoryResponse]
+    total: int
