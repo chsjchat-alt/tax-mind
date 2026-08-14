@@ -11,14 +11,14 @@ import asyncio
 import logging
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import (
     get_db, success_response, error_response,
     require_viewer, require_admin,
-    get_current_user, get_current_tenant_id,
+    get_current_tenant_id,
 )
 from app.models.enterprise import Enterprise
 from app.models.bank_transaction import BankTransaction
