@@ -1,17 +1,17 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useEnterpriseStore, useRiskViewState } from '@/store';
-import { complianceApi } from '@/api';
-import { enterpriseApi } from '@/api';
+import { complianceApi, enterpriseApi, riskScanApi } from '@/api';
 import { RiskLegend, LanguageToggle, RiskMapCard } from '@/components/riskmap';
 import SSFQuadrantChart from '@/components/ssf';
 import { DualCostGauge, TaxBurdenElasticityChart } from '@/components/charts';
 import { LoadingSpinner, EmptyState, TableContainer } from '@/components/common';
 import { Button, Progress, Switch, Table, Tag } from 'antd';
+import type { ColumnsType } from 'antd/es/table';
 import {
   RISK_COLORS, RISK_LABELS, AUDIT_PROBABILITY_CRITICAL,
   BUSINESS_MODEL_MAP, BUSINESS_MODEL_DESC,
 } from '@/types';
-import type { RiskLevel, BusinessModel, CostGaugeData, TaxBurdenElasticityData, ICRadarData, NBTInterventionResult, MatchDetailItem } from '@/types';
+import type { RiskLevel, BusinessModel, CostGaugeData, TaxBurdenElasticityData, ICRadarData, NBTInterventionResult, MatchDetailItem, RiskScoreTrajectory } from '@/types';
 import type { Language } from '@/components/riskmap';
 
 // ═══════════════════════════════════════
@@ -189,6 +189,8 @@ function RiskMap() {
   const [isFullyCompliant, setIsFullyCompliant] = useState(false);
   // 匹配明细筛选：仅显示未匹配项
   const [onlyUnmatched, setOnlyUnmatched] = useState(false);
+  // 整改前后评分演化轨迹（B3）
+  const [trajectories, setTrajectories] = useState<RiskScoreTrajectory[]>([]);
 
   const enterpriseId = currentEnterprise?.id;
 
@@ -206,6 +208,14 @@ function RiskMap() {
       })
       .catch(() => {});
   }, [enterpriseId, fetchLatest]);
+
+  // 整改/重评评分演化轨迹（A1：整改前后评分对照）
+  useEffect(() => {
+    if (!enterpriseId) return;
+    riskScanApi.trajectory(enterpriseId)
+      .then((res) => setTrajectories(res.data.data.trajectories ?? []))
+      .catch(() => setTrajectories([]));
+  }, [enterpriseId]);
 
   useEffect(() => {
     if (!enterpriseId || !result) return;
@@ -250,6 +260,13 @@ function RiskMap() {
     if (score >= 30) return 'medium';
     return 'low';
   }, [result, adjustedRiskScore, isFullyCompliant]);
+
+  // ── 合规得分（A3：风险分 = 100 − 合规得分，双轨展示） ──
+  const complianceScore = useMemo(() => Math.round(100 - adjustedRiskScore), [adjustedRiskScore]);
+  const rawRiskScore = useMemo(
+    () => Math.round(result?.overall_risk_score ?? 0),
+    [result?.overall_risk_score],
+  );
 
   const isCritical = useMemo(
     () =>
@@ -381,12 +398,12 @@ function RiskMap() {
   // 老板视角：风险全局概览
   // ══════════════════════════════════════════
   const bossOverviewCards = (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-      {/* 综合风险评分 */}
+    <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+      {/* 综合风险评分（合规调整后） */}
       <div className="bg-white rounded-xl border border-gray-200 p-4 text-center hover:shadow-md transition-shadow">
         <p className="text-xs text-gray-400 mb-1">综合风险评分</p>
         <p className="text-3xl font-bold" style={{ color: RISK_COLORS[adjustedRiskLevel] }}>
-          {(overall_risk_score ?? 0).toFixed(1)}
+          {adjustedRiskScore}
         </p>
         <span
           className="inline-block mt-1 px-2 py-0.5 rounded-full text-xs font-bold text-white"
@@ -394,6 +411,24 @@ function RiskMap() {
         >
           {RISK_LABELS[adjustedRiskLevel]}
         </span>
+        {adjustedRiskScore !== rawRiskScore && (
+          <p className="text-[10px] text-gray-400 mt-1">原始风险分 {rawRiskScore}</p>
+        )}
+      </div>
+
+      {/* 合规得分（A3：100 − 风险分） */}
+      <div className="bg-white rounded-xl border border-emerald-200 p-4 text-center hover:shadow-md transition-shadow">
+        <p className="text-xs text-gray-400 mb-1">合规得分</p>
+        <p className="text-3xl font-bold text-emerald-600" data-testid="compliance-score">
+          {complianceScore}
+        </p>
+        <span
+          className="inline-block mt-1 px-2 py-0.5 rounded-full text-xs font-bold"
+          style={{ backgroundColor: '#10B98118', color: '#10B981' }}
+        >
+          {complianceScore >= 70 ? '合规良好' : complianceScore >= 40 ? '合规待提升' : '合规风险高'}
+        </span>
+        <p className="text-[10px] text-gray-400 mt-1">= 100 − 风险分{adjustedRiskScore !== rawRiskScore && `（调整后 ${adjustedRiskScore}）`}</p>
       </div>
 
       {/* 稽查概率 */}
@@ -602,6 +637,80 @@ function RiskMap() {
   );
 
   // ══════════════════════════════════════════
+  // 整改前后评分演化（A1）表格列
+  // ══════════════════════════════════════════
+  const trajectoryColumns: ColumnsType<RiskScoreTrajectory> = [
+    {
+      title: '评估日期',
+      dataIndex: 'assessment_date',
+      key: 'assessment_date',
+      width: 100,
+      render: (v: string) => (v ? v.slice(0, 10) : '—'),
+    },
+    {
+      title: '整改前风险分',
+      dataIndex: 'before_score',
+      key: 'before_score',
+      width: 100,
+      align: 'center',
+      render: (v: number | null) => (v != null ? v : '—'),
+    },
+    {
+      title: '整改后风险分',
+      dataIndex: 'after_score',
+      key: 'after_score',
+      width: 100,
+      align: 'center',
+      render: (v: number) => <span className="font-bold text-gray-800">{v}</span>,
+    },
+    {
+      title: '分差',
+      key: 'delta',
+      width: 80,
+      align: 'center',
+      render: (_, row) => {
+        if (row.before_score == null) return '—';
+        const delta = Math.round((row.after_score - row.before_score) * 100) / 100;
+        if (delta < 0) return <span className="text-emerald-600 font-medium">{delta} ↓</span>;
+        if (delta > 0) return <span className="text-red-600 font-medium">+{delta} ↑</span>;
+        return <span className="text-gray-400">0</span>;
+      },
+    },
+    {
+      title: '等级变化',
+      dataIndex: 'level_jump',
+      key: 'level_jump',
+      width: 150,
+      render: (v: string, row) => {
+        const from = row.before_level ? RISK_LABELS[row.before_level] : '—';
+        const to = RISK_LABELS[row.after_level] ?? row.after_level;
+        return (
+          <span className="text-xs">
+            {from} → {to}
+            {v === 'down' && <Tag color="success" className="ml-1">改善</Tag>}
+            {v === 'up' && <Tag color="error" className="ml-1">恶化</Tag>}
+            {v === 'same' && <Tag className="ml-1">持平</Tag>}
+          </span>
+        );
+      },
+    },
+    {
+      title: '来源',
+      dataIndex: 'changed_by',
+      key: 'changed_by',
+      width: 90,
+      render: (v: string) =>
+        v === 'remediation' ? <Tag color="processing">整改完成</Tag> : <Tag>例行重评</Tag>,
+    },
+    {
+      title: '原因',
+      dataIndex: 'reason',
+      key: 'reason',
+      ellipsis: true,
+    },
+  ];
+
+  // ══════════════════════════════════════════
   return (
     <div className="space-y-6">
       {topBanner}
@@ -642,6 +751,27 @@ function RiskMap() {
 
           {/* 决策建议 */}
           {bossActionGuidance}
+
+          {/* 整改前后评分演化（A1：整改/重评证据链） */}
+          {trajectories.length > 0 && (
+            <div className="rounded-2xl border border-gray-200 bg-white p-5 sm:p-6">
+              <div className="flex items-center gap-2 mb-4">
+                <div className="w-1 h-5 rounded-full bg-blue-600" />
+                <h3 className="text-base font-semibold text-gray-700">整改前后评分演化</h3>
+                <span className="text-xs text-gray-400 ml-2">风险评分轨迹（整改完成 / 例行重评证据链）</span>
+              </div>
+              <TableContainer>
+                <Table<RiskScoreTrajectory>
+                  rowKey="id"
+                  size="small"
+                  pagination={{ pageSize: 5, hideOnSinglePage: true }}
+                  dataSource={trajectories}
+                  columns={trajectoryColumns}
+                  locale={{ emptyText: '暂无评分演化记录' }}
+                />
+              </TableContainer>
+            </div>
+          )}
 
           {/* 高压补充 — 损失框架 */}
           {isCritical && nbtData?.budge && (

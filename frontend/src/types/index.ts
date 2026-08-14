@@ -112,11 +112,14 @@ export interface RiskScanResult {
     risk_reason?: string;
     policy_ref?: string;
     policy_basis?: string;
+    /** 内控系数 C（B4 连续化，1.0 − 维度分/100，仅 5 维引擎返回） */
+    internal_control_coefficient?: number;
   }>;
   recommendations: Record<string, unknown>;
   match_details?: MatchDetailItem[];
   business_narrative: string;
-  technical_summary: string;
+  /** 5 维引擎返回结构化 dict；旧引擎兼容字符串 */
+  technical_summary: string | Record<string, unknown>;
   assessment_date: string;
 }
 
@@ -577,6 +580,21 @@ export interface RemediationTaskUpdateResult extends RemediationTask {
     };
   };
   overall_risk_score?: number;
+}
+
+/** 风险评分演化轨迹（B3：整改/重评估前后对比证据链） */
+export interface RiskScoreTrajectory {
+  id: string;
+  enterprise_id: string;
+  assessment_date: string;
+  before_score: number | null;
+  after_score: number;
+  before_level: RiskLevel | null;
+  after_level: RiskLevel;
+  level_jump: 'up' | 'down' | 'same';
+  changed_by: 'remediation' | 'risk_scan';
+  reason: string;
+  created_at: string;
 }
 
 export const TASK_STATUS_LABELS: Record<string, string> = {

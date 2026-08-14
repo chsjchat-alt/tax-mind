@@ -10,7 +10,7 @@ import type {
   TaxPreferenceResult, InterventionResult,
   NBTInterventionResult,
   BankTransaction, Invoice, TaxDeclaration, Contract,
-  RemediationTask, Report,
+  RemediationTask, RemediationTaskUpdateResult, RiskScoreTrajectory, Report,
   ComplianceCheckResult, UploadCheckResult,
   SSFResult,
 } from '@/types';
@@ -46,6 +46,10 @@ export const riskScanApi = {
 
   detail: (assessmentId: string) =>
     apiClient.get<ApiResponse<RiskAssessment>>(`/risk-assessments/${assessmentId}`),
+
+  /** 风险评分演化轨迹（B3：整改/重评估前后对比证据链） */
+  trajectory: (enterpriseId: string) =>
+    apiClient.get<ApiResponse<{ trajectories: RiskScoreTrajectory[]; total: number }>>(`/enterprises/${enterpriseId}/risk-score-trajectory`),
 };
 
 // ── 心理画像 ──
@@ -117,7 +121,7 @@ export const remediationApi = {
     status?: string; progress?: number;
     compliance_tags?: string[]; feedback_notes?: string;
   }) =>
-    apiClient.put<ApiResponse<RemediationTask>>(`/remediation-tasks/${taskId}`, data),
+    apiClient.put<ApiResponse<RemediationTaskUpdateResult>>(`/remediation-tasks/${taskId}`, data),
 
   detail: (taskId: string) =>
     apiClient.get<ApiResponse<RemediationTask>>(`/remediation-tasks/${taskId}`),

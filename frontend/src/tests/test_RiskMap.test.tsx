@@ -26,6 +26,7 @@ vi.mock('@/api', () => ({
   riskScanApi: {
     scan: vi.fn().mockResolvedValue({ data: { data: null } }),
     latest: vi.fn().mockResolvedValue({ data: { data: null } }),
+    trajectory: vi.fn().mockResolvedValue({ data: { data: { trajectories: [], total: 0 } } }),
   },
   enterpriseApi: {
     list: vi.fn(),
@@ -167,6 +168,9 @@ beforeEach(() => {
   vi.mocked(riskScanApi.latest).mockResolvedValue(
     { data: { code: 200, message: 'success', data: null } } as unknown as Awaited<ReturnType<typeof riskScanApi.latest>>,
   )
+  vi.mocked(riskScanApi.trajectory).mockResolvedValue(
+    { data: { code: 200, message: 'success', data: { trajectories: [], total: 0 } } } as unknown as Awaited<ReturnType<typeof riskScanApi.trajectory>>,
+  )
   vi.mocked(ssfApi.getState).mockResolvedValue(
     { data: { code: 200, message: 'success', data: null } } as unknown as Awaited<ReturnType<typeof ssfApi.getState>>,
   )
@@ -265,13 +269,55 @@ describe('RiskMap — 有数据', () => {
   })
 
   // ── 老板视角专属功能 ──
-  it('老板视角 → 4 个 KPI 概览卡片', () => {
+  it('老板视角 → 5 个 KPI 概览卡片', () => {
     renderRiskMap()
-    // 综合风险评分、预计稽查概率、高危风险维度、预估补税·罚款
+    // 综合风险评分、合规得分、预计稽查概率、高危风险维度、预估补税·罚款
     expect(screen.getByText('综合风险评分')).toBeInTheDocument()
+    expect(screen.getByText('合规得分')).toBeInTheDocument()
     expect(screen.getByText('预计稽查概率')).toBeInTheDocument()
     expect(screen.getByText('高危风险维度')).toBeInTheDocument()
     expect(screen.getByText('预估补税·罚款')).toBeInTheDocument()
+  })
+
+  // ── A3：合规得分换算（风险分 = 100 − 合规得分） ──
+  it('老板视角 → 合规得分卡片（100 − 风险分换算）', () => {
+    renderRiskMap()
+    // adjustedRiskScore = round(55 * (1-0)) = 55 → 合规得分 = 100 − 55 = 45
+    expect(screen.getByTestId('compliance-score')).toHaveTextContent('45')
+    expect(screen.getByText(/100 − 风险分/)).toBeInTheDocument()
+    // 无合规调整时风险分卡片不展示"原始风险分"副文案
+    expect(screen.queryByText(/原始风险分/)).not.toBeInTheDocument()
+  })
+
+  // ── A1：整改前后评分演化（轨迹证据链） ──
+  it('老板视角 → 整改前后评分演化（整改完成轨迹）', async () => {
+    vi.mocked(riskScanApi.trajectory).mockResolvedValue(
+      { data: { code: 200, message: 'success', data: {
+        trajectories: [{
+          id: 'tr-001',
+          enterprise_id: 'ent-001',
+          assessment_date: '2025-07-01T00:00:00',
+          before_score: 55,
+          after_score: 35,
+          before_level: 'medium',
+          after_level: 'medium',
+          level_jump: 'down',
+          changed_by: 'remediation',
+          reason: '完成四流匹配整改',
+          created_at: '2025-07-01T00:00:00',
+        }],
+        total: 1,
+      } } } as unknown as Awaited<ReturnType<typeof riskScanApi.trajectory>>,
+    )
+    renderRiskMap()
+    await waitFor(() => {
+      expect(screen.getByText('整改前后评分演化')).toBeInTheDocument()
+    })
+    // 整改后风险分 + 改善标记 + 原因
+    expect(screen.getByText('35')).toBeInTheDocument()
+    expect(screen.getByText('改善')).toBeInTheDocument()
+    expect(screen.getByText(/完成四流匹配整改/)).toBeInTheDocument()
+    expect(screen.getByText('整改完成')).toBeInTheDocument()
   })
 
   it('老板视角 → 核心风险聚焦（高危 + 中危）', () => {
