@@ -36,6 +36,7 @@ from app.core.penalty_calculator import (
     PENALTY_MULTIPLIER,
     GHOST_INVOICE_MULTIPLIER,
 )
+from app.core.credit_veto import resolve_tax_credit_veto
 
 
 # ═══════════════════════════════════════════════════════
@@ -255,9 +256,62 @@ class EnterpriseDataPayload:
     is_small_micro: bool = False
     is_internal_control_failed: bool = False
 
+    # ── 一票否决输入（纳税信用 / 涉税犯罪）──
+    tax_credit_level: str = ""                        # 纳税信用等级 A/B/C/D（""=未评级）
+    tax_crime_convicted: bool = False                 # 涉税犯罪生效判决
+
     # ── 风险历史 ──
     previous_risk_level: str = "low"
     consecutive_high_risk_periods: int = 0
+
+
+# ═══════════════════════════════════════════════════════
+# B2/B4 系数：事项级严重程度 S（复用 PENALTY_MULTIPLIER 五档）与内控系数 C 连续化
+# ═══════════════════════════════════════════════════════
+
+# 基准档：medium_high（2.5 倍，对应征管法第 63 条标准罚款情景），
+# 事项级严重度系数 = 该事项档位倍数 / 基准档倍数（≤ 1 表示从轻、> 1 表示加重）。
+SEVERITY_BASE_MULTIPLIER = PENALTY_MULTIPLIER["medium_high"]
+
+
+def _severity_multiplier(tier: str) -> float:
+    """事项级严重程度系数 S（B2）：PENALTY_MULTIPLIER 五档相对基准档的比值。
+
+    例：low=0.5/2.5=0.2；high=3.5/2.5=1.4；critical=5.0/2.5=2.0。
+    未知档位按 1.0（不放大不缩小），保证确定性且向后兼容。
+    """
+    value = PENALTY_MULTIPLIER.get(tier)
+    if value is None:
+        return 1.0
+    return float(Decimal(str(value)) / Decimal(str(SEVERITY_BASE_MULTIPLIER)))
+
+
+def _apply_severity_multiplier(base_points: float, tier: str) -> float:
+    """将事项基础扣分 × 严重程度系数（扣分粒度从维度级细化为事项级）。"""
+    return base_points * _severity_multiplier(tier)
+
+
+def _compute_internal_control_coefficients(
+    dim_scores: dict[str, float],
+) -> dict[str, float]:
+    """B4 内控系数 C_i 连续化：按分维度通过比例映射到 [0, 1]。
+
+    C_i = 1 − min(1.0, score_i/100)：
+      - 维度风险分 0（该维度检查全部通过）→ C=1（内控有效，扣分不打折）；
+      - 维度风险分 100（内控完全失效）→ C=0（全额扣分）；
+      - 中间值线性连续，替代单一 is_internal_control_failed 二元开关
+        （修正说明书公式缺陷 3）。
+
+    Args:
+        dim_scores: 各维度风险分（0~100，分数越高风险越大）。
+
+    Returns:
+        {维度: C_i}，C_i ∈ [0, 1]，保留 4 位小数。
+    """
+    return {
+        dim: round(1.0 - min(1.0, float(score) / 100.0), 4)
+        for dim, score in dim_scores.items()
+    }
 
 
 # ═══════════════════════════════════════════════════════
@@ -287,6 +341,7 @@ def _assess_macro_internal_control(
         (风险分, 风险标记, 整改建议, 技术详情dict)
     """
     flags: list[str] = []
+    tiers: list[str] = []          # 与 flags 同步的事项级严重度档位（B2）
     recs: list[str] = []
     tech_detail: dict[str, Any] = {
         "asset_type": payload.asset_type,
@@ -317,6 +372,7 @@ def _assess_macro_internal_control(
                     f"存在违规资本化异常——固定资产折旧占比过高，可能通过延长折旧年限、"
                     f"减少当期费用来粉饰利润"
                 )
+                tiers.append("high")  # 违规资本化：利润粉饰嫌疑，从重档
                 recs.append(
                     "核查固定资产折旧政策是否符合税法规定，"
                     "检查是否存在延迟计提折旧或资本化费用化的舞弊行为"
@@ -369,6 +425,7 @@ def _assess_macro_internal_control(
 
         if susp_count > 0:
             flags.extend(susp_details)
+            tiers.extend(["high"] * susp_count)  # 摊销/服务费冲账：虚增成本侵蚀税基，从重档
             recs.append(
                 "审查大额服务费和无形资产摊销的合同实质，"
                 "排查关联方交易定价是否公允、是否具有真实商业目的"
@@ -412,17 +469,33 @@ def _assess_macro_internal_control(
                 payload.enterprise_name, reason, detail
             )
 
-    # ── 风险分计算 ──
+    # ── 风险分计算（B2：事项级严重程度系数 S，每事项基础 25 分 × 档位系数）──
     if not flags:
         return 0.0, [], [], tech_detail
 
-    score = min(100.0, float(len(flags) * 25.0))
+    score = min(
+        100.0,
+        sum(_apply_severity_multiplier(25.0, t) for t in tiers),
+    )
     return score, flags, recs, tech_detail
 
 
 # ═══════════════════════════════════════════════════════
 # 维度二：增值税 GAAR 反避税（一般反避税规则）
 # ═══════════════════════════════════════════════════════
+
+def _vat_flag_tier(flag: str) -> str:
+    """增值税 GAAR 维度事项级严重度分类（确定性关键词规则，B2）。
+
+    - 转让定价畸低：从重档 high（关联交易转移利润，涉嫌规避增值税）；
+    - 资金闭环回流 / GAAR：触发例外路径由调用方置 100 分，此处仅兜底；
+    - 合同-发票偏离等一般预警：基准档 medium_high（不放大不缩小）。
+    """
+    if "转让定价" in flag:
+        return "high"
+    if "资金闭环" in flag or "GAAR" in flag:
+        return "critical"
+    return "medium_high"
 
 def _assess_vat_gaar(
     payload: EnterpriseDataPayload,
@@ -582,11 +655,13 @@ def _assess_vat_gaar(
                     "准备转让定价同期资料（国别报告/主体文档/本地文档）"
                 )
 
-    # ── 风险分计算 ──
+    # ── 风险分计算（B2：事项级严重程度系数 S，复用 PENALTY_MULTIPLIER 五档）──
     if not flags and not violations:
         return 0.0, [], [], []
 
-    base_score = float(len(flags) * 20.0 + len(violations) * 15.0)
+    base_score = sum(
+        _apply_severity_multiplier(20.0, _vat_flag_tier(f)) for f in flags
+    ) + len(violations) * _apply_severity_multiplier(15.0, "high")
     score = min(100.0, base_score)
     return score, flags, recs, violations
 
@@ -597,6 +672,7 @@ def _assess_vat_gaar(
 
 def _assess_iit_hidden_dividend(
     payload: EnterpriseDataPayload,
+    iit_rate: Decimal | None = None,
 ) -> tuple[float, list[str], list[str], Decimal, str]:
     """
     维度三：个税隐性分红穿透。
@@ -664,7 +740,7 @@ def _assess_iit_hidden_dividend(
         max_days = max((d["days_overdue"] for d in triggered_items),
                        default=0)
         unpaid_iit = _calculate_iit_hidden_dividend(
-            shareholder_loan_total, max_days
+            shareholder_loan_total, max_days, iit_rate=iit_rate
         )
 
         borrowers = ", ".join(
@@ -707,6 +783,7 @@ async def calculate_comprehensive_tax_risk(
     enterprise_id: str,
     payload: EnterpriseDataPayload,
     db_session: AsyncSession,
+    config: dict | None = None,
 ) -> ComprehensiveTaxRiskResult:
     """
     五维全景税务风险评估主入口。
@@ -722,6 +799,11 @@ async def calculate_comprehensive_tax_risk(
         enterprise_id: 企业ID
         payload: 企业数据载荷（聚合了所有相关表的业务数据）
         db_session: 异步数据库会话（用于加载 IndustryBenchmark 等关联数据）
+        config: 参数配置（B1 配置化；None 时从 risk_config 表读取，读失败回退模块默认值）。
+                支持键：weights_5dim / risk_critical_threshold / risk_high_level_threshold /
+                risk_medium_high_threshold / risk_medium_level_threshold /
+                high_dimension_score_threshold / penalty_multiplier /
+                ghost_invoice_multiplier / late_fee_daily_rate / iit_dividend_rate
 
     Returns:
         ComprehensiveTaxRiskResult: 结构化五维全景评估结果
@@ -731,6 +813,48 @@ async def calculate_comprehensive_tax_risk(
         GAARViolationWarning: 一般反避税规则违规
     """
     from datetime import timezone as tz
+
+    # ── B1 参数配置化：读取权重/阈值/罚则参数（未配置回退模块权威默认值）──
+    if config is None:
+        from app.core.risk_config import get_risk_config
+        config = await get_risk_config(db_session)
+
+    weights = config.get("weights_5dim") or {
+        "macro_internal_control": 0.20,
+        "vat_gaar": 0.25,
+        "iit_hidden_dividend": 0.15,
+        "compound_penalty": 0.15,
+        "four_flow_match": 0.25,
+    }
+    thresholds = {
+        "critical": config.get("risk_critical_threshold") if config.get("risk_critical_threshold") is not None else 80.0,
+        "high": config.get("risk_high_level_threshold") if config.get("risk_high_level_threshold") is not None else 60.0,
+        "medium_high": config.get("risk_medium_high_threshold") if config.get("risk_medium_high_threshold") is not None else 45.0,
+        "medium": config.get("risk_medium_level_threshold") if config.get("risk_medium_level_threshold") is not None else 30.0,
+    }
+    high_dim_threshold = (
+        config.get("high_dimension_score_threshold")
+        if config.get("high_dimension_score_threshold") is not None else 70.0
+    )
+
+    # 罚则参数：配置值（JSON → Decimal）或 None（模块默认）
+    _pen_cfg = config.get("penalty_multiplier")
+    penalty_multiplier_map: dict[str, Decimal] | None = (
+        {str(k): Decimal(str(v)) for k, v in _pen_cfg.items()}
+        if isinstance(_pen_cfg, dict) and _pen_cfg else None
+    )
+    ghost_invoice_multiplier: Decimal | None = (
+        Decimal(str(config["ghost_invoice_multiplier"]))
+        if config.get("ghost_invoice_multiplier") is not None else None
+    )
+    late_fee_daily_rate: Decimal | None = (
+        Decimal(str(config["late_fee_daily_rate"]))
+        if config.get("late_fee_daily_rate") is not None else None
+    )
+    iit_rate: Decimal | None = (
+        Decimal(str(config["iit_dividend_rate"]))
+        if config.get("iit_dividend_rate") is not None else None
+    )
 
     result = ComprehensiveTaxRiskResult(
         enterprise_id=enterprise_id,
@@ -773,6 +897,8 @@ async def calculate_comprehensive_tax_risk(
             "status": "internal_control_failed",
             "reason": e.reason,
             "detail": e.detail,
+            # B4：内控崩溃维度 C=0（全额扣分），与连续化口径一致
+            "internal_control_coefficients": {"macro_internal_control": 0.0},
         }
         result.dimension_scores = {"macro_internal_control": 100.0}
         result.dim_details = {
@@ -828,7 +954,9 @@ async def calculate_comprehensive_tax_risk(
     # ═══════════════════════════════════════════════════
     # 维度三：个税隐性分红穿透
     # ═══════════════════════════════════════════════════
-    score_3, flags_3, recs_3, iit_amount, iit_detail = _assess_iit_hidden_dividend(payload)
+    score_3, flags_3, recs_3, iit_amount, iit_detail = _assess_iit_hidden_dividend(
+        payload, iit_rate=iit_rate
+    )
 
     dim_scores["iit_hidden_dividend"] = score_3
     dim_details["iit_hidden_dividend"] = _with_policy_basis(
@@ -878,7 +1006,12 @@ async def calculate_comprehensive_tax_risk(
         has_ghost_invoice=(len(gaar_violations) > 0),
     )
 
-    penalty_result = calculate_compound_penalty_exposure(penalty_input)
+    penalty_result = calculate_compound_penalty_exposure(
+        penalty_input,
+        penalty_multiplier=penalty_multiplier_map,
+        ghost_invoice_multiplier=ghost_invoice_multiplier,
+        late_fee_daily_rate=late_fee_daily_rate,
+    )
     result.compound_penalty = penalty_result
 
     dim_scores["compound_penalty"] = min(
@@ -980,20 +1113,13 @@ async def calculate_comprehensive_tax_risk(
     result.risk_flags.extend(ffm_result.risk_flags)
 
     # ═══════════════════════════════════════════════════
-    # 综合评分
+    # 综合评分（B4：内控系数 C_i 连续化后按 (1−C_i) 计入敞口）
     # ═══════════════════════════════════════════════════
 
-    # 权重定义
-    weights = {
-        "macro_internal_control": 0.20,
-        "vat_gaar": 0.25,
-        "iit_hidden_dividend": 0.15,
-        "compound_penalty": 0.15,
-        "four_flow_match": 0.25,
-    }
-
+    c_coeffs = _compute_internal_control_coefficients(dim_scores)
+    # 每个维度风险贡献 = 权重 × 风险分 × 未覆盖比例 (1−C_i)
     overall = sum(
-        dim_scores.get(dim, 0) * w
+        dim_scores.get(dim, 0.0) * w * (1.0 - c_coeffs.get(dim, 1.0))
         for dim, w in weights.items()
     )
     result.overall_risk_score = round(overall, 2)
@@ -1002,26 +1128,47 @@ async def calculate_comprehensive_tax_risk(
     result.risk_flags = list(dict.fromkeys(result.risk_flags))
     result.recommendations = list(dict.fromkeys(result.recommendations))
 
-    # 风险等级映射（5级）
-    if result.overall_risk_score >= 80:
+    # 内控系数 C_i 与严重度档位回填到维度详情（B2/B4 透出，供展示与追溯）
+    for dim, coeff in c_coeffs.items():
+        if dim in dim_details:
+            dim_details[dim]["internal_control_coefficient"] = coeff
+
+    # 风险等级映射（5级，阈值可配置）
+    if result.overall_risk_score >= thresholds["critical"]:
         result.overall_risk_level = "critical"
-    elif result.overall_risk_score >= 60:
+    elif result.overall_risk_score >= thresholds["high"]:
         result.overall_risk_level = "high"
-    elif result.overall_risk_score >= 45:
+    elif result.overall_risk_score >= thresholds["medium_high"]:
         result.overall_risk_level = "medium_high"
-    elif result.overall_risk_score >= 30:
+    elif result.overall_risk_score >= thresholds["medium"]:
         result.overall_risk_level = "medium"
     else:
         result.overall_risk_level = "low"
 
     # ── 一票否决规则 ──
-    high_count = sum(1 for s in dim_scores.values() if s >= 70)
-    if high_count >= 3 and result.overall_risk_score < 80:
-        result.overall_risk_score = 80.0
+    high_count = sum(1 for s in dim_scores.values() if s >= high_dim_threshold)
+    if high_count >= 3 and result.overall_risk_score < thresholds["critical"]:
+        result.overall_risk_score = thresholds["critical"]
         result.overall_risk_level = "critical"
-    elif high_count >= 2 and result.overall_risk_score < 60:
-        result.overall_risk_score = 60.0
+    elif high_count >= 2 and result.overall_risk_score < thresholds["high"]:
+        result.overall_risk_score = thresholds["high"]
         result.overall_risk_level = "high"
+
+    # ── 一票否决扩展：纳税信用 D 级 / 涉税犯罪（2025 年第 12 号 / 刑法第 201 条）──
+    # 触发则风险分强制置顶为 100、等级 critical，且修复加分不计（由 compliance_adjustment 拦截）
+    tax_credit_veto_reason = resolve_tax_credit_veto(
+        payload.tax_credit_level,
+        payload.tax_crime_convicted,
+    )
+    if tax_credit_veto_reason:
+        result.overall_risk_score = 100.0
+        result.overall_risk_level = "critical"
+        result.risk_flags.append(tax_credit_veto_reason)
+        result.recommendations.append(
+            "纳税信用 D 级 / 涉税犯罪为直接判级情形：立即委托税务师与律师制定补缴、"
+            "滞纳金与罚款处置方案，依据《纳税缴费信用管理办法》（2025 年第 12 号）"
+            "申请纳税缴费信用修复，并保留全部整改凭证以备合规考察。"
+        )
 
     result.dimension_scores = dim_scores
     result.dim_details = dim_details
@@ -1036,11 +1183,14 @@ async def calculate_comprehensive_tax_risk(
         "weights": weights,
         "flags_count": len(result.risk_flags),
         "veto_triggered": high_count >= 2,
+        "tax_credit_veto": tax_credit_veto_reason,
+        "internal_control_coefficients": c_coeffs,
+        "severity_scale": "PENALTY_MULTIPLIER 五档（medium_high=2.5 为基准）",
         "thresholds": {
-            "critical": 80,
-            "high": 60,
-            "medium_high": 45,
-            "medium": 30,
+            "critical": thresholds["critical"],
+            "high": thresholds["high"],
+            "medium_high": thresholds["medium_high"],
+            "medium": thresholds["medium"],
         },
     }
 

@@ -488,3 +488,60 @@ class TestPolicyBasisFields:
         )
         result = assess_enterprise_risk(enterprise_input=empty_input)
         assert result.dim_details == {}
+
+
+# ═══════════════════════════════════════════════════════════
+#  一票否决扩展：纳税信用 D 级 / 涉税犯罪
+# ═══════════════════════════════════════════════════════════
+
+class TestTaxCreditVeto:
+    """纳税信用 D 级 / 涉税犯罪一票否决（2025 年第 12 号 / 刑法第 201 条）"""
+
+    def test_d_level_forces_max_score(self, normal_enterprise, perfect_flow_match):
+        """纳税信用 D 级 → 风险分强制 100、等级 high"""
+        normal_enterprise.tax_credit_level = "D"
+        result = assess_enterprise_risk(normal_enterprise, perfect_flow_match)
+        assert result.overall_risk_score == 100.0
+        assert result.overall_risk_level == "high"
+        assert result.technical_summary["tax_credit_veto"]
+        assert any("D 级" in f for f in result.risk_flags)
+        assert any("信用修复" in r for r in result.recommendations)
+
+    def test_tax_crime_forces_max_score(self, normal_enterprise, perfect_flow_match):
+        """涉税犯罪生效判决 → 风险分强制 100、等级 high"""
+        normal_enterprise.tax_crime_convicted = True
+        result = assess_enterprise_risk(normal_enterprise, perfect_flow_match)
+        assert result.overall_risk_score == 100.0
+        assert result.overall_risk_level == "high"
+        assert result.technical_summary["tax_credit_veto"]
+        assert any("涉税犯罪" in f for f in result.risk_flags)
+
+    def test_no_veto_for_a_level(self, normal_enterprise, perfect_flow_match):
+        """A 级纳税信用 → 不触发一票否决，维持低风险"""
+        normal_enterprise.tax_credit_level = "A"
+        result = assess_enterprise_risk(normal_enterprise, perfect_flow_match)
+        assert result.overall_risk_score < RISK_MEDIUM_THRESHOLD
+        assert result.technical_summary["tax_credit_veto"] is None
+
+    def test_veto_overrides_low_dimension_scores(self, normal_enterprise, perfect_flow_match):
+        """即使各维度都正常，D 级仍强制最高分"""
+        normal_enterprise.tax_credit_level = "d"  # 小写也生效
+        result = assess_enterprise_risk(normal_enterprise, perfect_flow_match)
+        assert result.overall_risk_score == 100.0
+        assert result.overall_risk_level == "high"
+
+    def test_veto_applies_even_without_data(self):
+        """数据不足时 D 级仍直接判级（2025 年第 12 号直接判 D 语义）"""
+        empty_input = EnterpriseRiskInput(
+            enterprise_name="空企业", industry="制造",
+            revenue_annual=Decimal("0"), tax_rate_industry=Decimal("3.0"),
+            cost_rate_industry=Decimal("85.0"),
+            actual_tax_burden_rate=Decimal("0"), actual_cost_rate=Decimal("0"),
+            total_private_card_amount=Decimal("0"), total_revenue=Decimal("0"),
+            total_input_invoice=Decimal("0"), total_output_invoice=Decimal("0"),
+            tax_credit_level="D",
+        )
+        result = assess_enterprise_risk(enterprise_input=empty_input)
+        assert result.technical_summary["status"] == "veto_triggered"
+        assert result.overall_risk_score == 100.0
+        assert result.overall_risk_level == "high"

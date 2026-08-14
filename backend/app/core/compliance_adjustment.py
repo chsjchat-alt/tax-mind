@@ -17,6 +17,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.remediation_task import RemediationTask, TaskStatus
 from app.models.risk_assessment import AssessRiskLevel
+from app.models.enterprise import Enterprise
+from app.core.credit_veto import resolve_tax_credit_veto
 
 _logger = logging.getLogger(__name__)
 
@@ -70,8 +72,28 @@ async def compute_compliance_adjusted_risk(
             "completion_count": int,      # 已完成合规任务数
             "is_fully_compliant": bool,   # 是否完全合规
             "reduction_pct": float,        # 风险降低百分比
+            "veto_reason": str | None,    # 一票否决原因（触发时返回，修复加分不计）
         }
     """
+    # 0. 一票否决判定（纳税信用 D 级 / 涉税犯罪 → R 不计，评分不因整改下调）
+    ent_result = await db.execute(
+        select(Enterprise).where(Enterprise.id == enterprise_id)
+    )
+    enterprise = ent_result.scalar_one_or_none()
+    veto_reason = (
+        resolve_tax_credit_veto(
+            enterprise.tax_credit_level,
+            enterprise.tax_crime_convicted,
+        )
+        if enterprise is not None else None
+    )
+
+    # 0.5 修复加分参数（B1 配置化：每任务降幅 / 降幅上限）
+    from app.core.risk_config import get_risk_config
+    _config = await get_risk_config(db)
+    pct_per_task = _config.get("reduction_pct_per_task", 0.15)
+    pct_max = _config.get("reduction_pct_max", 0.80)
+
     # 1. 查询已完成的合规整改任务
     completed_result = await db.execute(
         select(RemediationTask).where(
@@ -90,15 +112,19 @@ async def compute_compliance_adjusted_risk(
     )
 
     # 3. 计算风险降低幅度
-    # 每个完成的合规任务降低 15% 风险（最多降低 80%）
+    # 每个完成的合规任务降低 pct_per_task 风险（最多降低 pct_max）
     if completion_count == 0:
         reduction_pct = 0.0
     else:
-        reduction_pct = min(0.80, completion_count * 0.15)
+        reduction_pct = min(pct_max, completion_count * pct_per_task)
 
     # 4. 计算调整后评分
     raw_score = base_score if base_score is not None else 100.0
-    if is_fully_compliant:
+    if veto_reason:
+        # 一票否决触发 → 修复加分 R 不计，评分保持原始风险分不变
+        adjusted_score = raw_score
+        is_fully_compliant = False
+    elif is_fully_compliant:
         # 完全合规 → 强制低风险
         adjusted_score = 10.0
     else:
@@ -109,9 +135,10 @@ async def compute_compliance_adjusted_risk(
     adjusted_level = level_to_frontend(adjusted_level_enum)
 
     _logger.info(
-        "合规调整 | enterprise=%s | base=%.1f | completed=%d | reduction=%.0f%% | adjusted=%.1f (%s) | fully_compliant=%s",
+        "合规调整 | enterprise=%s | base=%.1f | completed=%d | reduction=%.0f%% | adjusted=%.1f (%s) | fully_compliant=%s | veto=%s",
         enterprise_id[:8], raw_score, completion_count,
         reduction_pct * 100, adjusted_score, adjusted_level, is_fully_compliant,
+        bool(veto_reason),
     )
 
     return {
@@ -120,6 +147,7 @@ async def compute_compliance_adjusted_risk(
         "completion_count": completion_count,
         "is_fully_compliant": is_fully_compliant,
         "reduction_pct": round(reduction_pct, 4),
+        "veto_reason": veto_reason,
     }
 
 
@@ -137,6 +165,22 @@ async def compute_compliance_adjusted_risks(
     if not enterprise_ids:
         return {}
 
+    # 0. 批量加载一票否决标志（纳税信用 D 级 / 涉税犯罪 → R 不计）
+    veto_map: dict[str, str | None] = {}
+    ent_result = await db.execute(
+        select(Enterprise).where(Enterprise.id.in_(enterprise_ids))
+    )
+    for ent in ent_result.scalars().all():
+        veto_map[ent.id] = resolve_tax_credit_veto(
+            ent.tax_credit_level, ent.tax_crime_convicted,
+        )
+
+    # 0.5 修复加分参数（B1 配置化）
+    from app.core.risk_config import get_risk_config
+    _config = await get_risk_config(db)
+    pct_per_task = _config.get("reduction_pct_per_task", 0.15)
+    pct_max = _config.get("reduction_pct_max", 0.80)
+
     # 一次聚合查询所有企业的已完成合规任务数
     result = await db.execute(
         select(
@@ -153,6 +197,7 @@ async def compute_compliance_adjusted_risks(
     adjusted: dict[str, dict] = {}
     for eid in enterprise_ids:
         completion_count = counts.get(eid, 0)
+        veto_reason = veto_map.get(eid)
         is_fully_compliant = bool(
             compliance_findings_counts
             and compliance_findings_counts.get(eid) == 0
@@ -161,10 +206,14 @@ async def compute_compliance_adjusted_risks(
         if completion_count == 0:
             reduction_pct = 0.0
         else:
-            reduction_pct = min(0.80, completion_count * 0.15)
+            reduction_pct = min(pct_max, completion_count * pct_per_task)
 
         raw_score = 100.0
-        if is_fully_compliant:
+        if veto_reason:
+            # 一票否决触发 → 修复加分 R 不计，评分保持原始风险分不变
+            adjusted_score = raw_score
+            is_fully_compliant = False
+        elif is_fully_compliant:
             adjusted_score = 10.0
         else:
             adjusted_score = raw_score * (1.0 - reduction_pct)
@@ -180,6 +229,7 @@ async def compute_compliance_adjusted_risks(
             "completion_count": completion_count,
             "is_fully_compliant": is_fully_compliant,
             "reduction_pct": round(reduction_pct, 4),
+            "veto_reason": veto_reason,
         }
 
     return adjusted

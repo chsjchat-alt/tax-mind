@@ -135,6 +135,7 @@ class CompoundPenaltyResult:
 def _calculate_iit_hidden_dividend(
     shareholder_loan_amount: Decimal,
     days_overdue: int = 365,
+    iit_rate: Decimal | None = None,
 ) -> Decimal:
     """
     个税隐性分红穿透还原。
@@ -149,21 +150,27 @@ def _calculate_iit_hidden_dividend(
             细中筛选出的股东及其直系亲属借款）
         days_overdue: 超过365天的逾期天数（用于判断是否触发
             穿透规则，非计息参数）
+        iit_rate: 股息红利税率（B1 配置化；None 用模块默认 20%）
 
     Returns:
         应补缴的个人所得税额（= 借款总额 × 20%）
     """
+    rate = iit_rate if iit_rate is not None else IIT_DIVIDEND_RATE
+
     # 第1条约束：借款必须满365天未归还才触发穿透
     if days_overdue < 365 or shareholder_loan_amount <= Decimal("0"):
         return Decimal("0")
 
     # 第2条约束：按"利息、股息、红利所得"20%固定税率计算
-    unpaid_iit = shareholder_loan_amount * IIT_DIVIDEND_RATE
+    unpaid_iit = shareholder_loan_amount * rate
     return unpaid_iit.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
 
 def calculate_compound_penalty_exposure(
     unpaid_tax: UnpaidTaxInput,
+    penalty_multiplier: dict[str, Decimal] | None = None,
+    ghost_invoice_multiplier: Decimal | None = None,
+    late_fee_daily_rate: Decimal | None = None,
 ) -> CompoundPenaltyResult:
     """
     毁灭性惩罚推演主函数。
@@ -180,10 +187,23 @@ def calculate_compound_penalty_exposure(
 
     Args:
         unpaid_tax: 欠税本金输入
+        penalty_multiplier: 罚款倍数映射（B1 配置化；None 用模块默认）
+        ghost_invoice_multiplier: 虚开叠加倍数（B1 配置化；None 用模块默认）
+        late_fee_daily_rate: 滞纳金日利率（B1 配置化；None 用模块默认）
 
     Returns:
         CompoundPenaltyResult: 结构化复合罚款推演结果
     """
+    multiplier_map = penalty_multiplier if penalty_multiplier is not None else PENALTY_MULTIPLIER
+    ghost_multiplier = (
+        ghost_invoice_multiplier
+        if ghost_invoice_multiplier is not None else GHOST_INVOICE_MULTIPLIER
+    )
+    daily_rate = (
+        late_fee_daily_rate
+        if late_fee_daily_rate is not None else LATE_FEE_DAILY_RATE
+    )
+
     result = CompoundPenaltyResult()
 
     # ── Step 1: 本金汇总 ─────────────────────────────────
@@ -204,7 +224,7 @@ def calculate_compound_penalty_exposure(
 
     # ── Step 2: 行政罚款 ─────────────────────────────────
     # 依据：征管法第63条/第64条——罚款倍数映射
-    multiplier = PENALTY_MULTIPLIER.get(
+    multiplier = multiplier_map.get(
         unpaid_tax.risk_level, Decimal("1.5")
     )
     result.penalty_multiplier = multiplier
@@ -222,7 +242,7 @@ def calculate_compound_penalty_exposure(
     late_fee_base = principal
     late_fee_total = (
         late_fee_base *
-        LATE_FEE_DAILY_RATE *
+        daily_rate *
         Decimal(str(unpaid_tax.late_days))
     ).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
     result.late_fee_total = late_fee_total
@@ -230,19 +250,19 @@ def calculate_compound_penalty_exposure(
     # 分解各税种滞纳金
     result.late_fee_breakdown = {
         "vat_late_fee": (
-            unpaid_tax.unpaid_vat * LATE_FEE_DAILY_RATE *
+            unpaid_tax.unpaid_vat * daily_rate *
             Decimal(str(unpaid_tax.late_days))
         ).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP),
         "cit_late_fee": (
-            unpaid_tax.unpaid_cit * LATE_FEE_DAILY_RATE *
+            unpaid_tax.unpaid_cit * daily_rate *
             Decimal(str(unpaid_tax.late_days))
         ).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP),
         "iit_late_fee": (
-            unpaid_tax.unpaid_iit * LATE_FEE_DAILY_RATE *
+            unpaid_tax.unpaid_iit * daily_rate *
             Decimal(str(unpaid_tax.late_days))
         ).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP),
         "other_late_fee": (
-            unpaid_tax.unpaid_other * LATE_FEE_DAILY_RATE *
+            unpaid_tax.unpaid_other * daily_rate *
             Decimal(str(unpaid_tax.late_days))
         ).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP),
     }
@@ -251,7 +271,7 @@ def calculate_compound_penalty_exposure(
     result.has_ghost_invoice = unpaid_tax.has_ghost_invoice
     if unpaid_tax.has_ghost_invoice:
         result.ghost_invoice_penalty = (
-            unpaid_tax.unpaid_vat * GHOST_INVOICE_MULTIPLIER
+            unpaid_tax.unpaid_vat * ghost_multiplier
         ).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
     else:
         result.ghost_invoice_penalty = Decimal("0")

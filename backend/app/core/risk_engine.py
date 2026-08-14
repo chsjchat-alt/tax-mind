@@ -24,6 +24,7 @@ from datetime import date
 from typing import Any
 
 from app.core.four_flow_match import FourFlowMatchResult, calculate_four_flow_match
+from app.core.credit_veto import resolve_tax_credit_veto
 
 # ── 加载行业锚点数据 ──
 import json
@@ -202,6 +203,9 @@ class EnterpriseRiskInput:
     total_revenue: Decimal                           # 申报收入总额
     total_input_invoice: Decimal                     # 进项税额合计
     total_output_invoice: Decimal                    # 销项税额合计
+    # ── 一票否决输入（纳税信用 / 涉税犯罪）──
+    tax_credit_level: str | None = None              # 纳税信用等级 A/B/C/D（None=未评级）
+    tax_crime_convicted: bool = False                # 涉税犯罪生效判决
 
 
 @dataclass
@@ -465,6 +469,7 @@ def assess_enterprise_risk(
     invoices: list | None = None,
     bank_transactions: list | None = None,
     has_tax_preference: bool = False,
+    config: dict | None = None,
 ) -> RiskAssessmentResult:
     """
     企业财税合规风险评估主入口。
@@ -478,10 +483,37 @@ def assess_enterprise_risk(
         invoices: 发票记录列表
         bank_transactions: 银行流水列表
         has_tax_preference: 是否享受税收优惠（影响税负率判定）
+        config: 参数配置（B1 配置化；None 时使用模块内权威默认值）。
+                支持键：risk_high_threshold / risk_medium_threshold /
+                high_dimension_score_threshold / weights_7dim
 
     Returns:
         RiskAssessmentResult: 包含风险等级、得分、标记、建议、双语输出
     """
+    # ── B1 参数配置化：读取阈值与权重（未配置回退模块默认值）──
+    if config is None:
+        high_threshold = RISK_HIGH_THRESHOLD
+        medium_threshold = RISK_MEDIUM_THRESHOLD
+        high_dim_threshold = 70.0
+        weights = RISK_WEIGHTS
+    else:
+        high_threshold = (
+            config.get("risk_high_threshold", RISK_HIGH_THRESHOLD)
+            if config.get("risk_high_threshold") is not None
+            else RISK_HIGH_THRESHOLD
+        )
+        medium_threshold = (
+            config.get("risk_medium_threshold", RISK_MEDIUM_THRESHOLD)
+            if config.get("risk_medium_threshold") is not None
+            else RISK_MEDIUM_THRESHOLD
+        )
+        high_dim_threshold = (
+            config.get("high_dimension_score_threshold", 70.0)
+            if config.get("high_dimension_score_threshold") is not None
+            else 70.0
+        )
+        weights = config.get("weights_7dim", RISK_WEIGHTS) or RISK_WEIGHTS
+
     result = RiskAssessmentResult()
 
     # ── 边界条件：空数据 ──
@@ -492,8 +524,29 @@ def assess_enterprise_risk(
         (contracts and invoices and bank_transactions)
     )
     if not has_data:
-        result.business_narrative = "暂无足够经营数据用于风险评估，请补充企业财务数据。"
-        result.technical_summary = {"status": "insufficient_data"}
+        # 数据不足时，纳税信用 D 级 / 涉税犯罪仍为直接判级（2025 年第 12 号）
+        insufficient_veto = resolve_tax_credit_veto(
+            enterprise_input.tax_credit_level,
+            enterprise_input.tax_crime_convicted,
+        )
+        if insufficient_veto:
+            result.overall_risk_score = 100.0
+            result.overall_risk_level = "high"
+            result.risk_flags.append(insufficient_veto)
+            result.business_narrative = (
+                f"「{enterprise_input.enterprise_name}」{insufficient_veto}，"
+                "即使暂缺经营数据，风险等级仍直接判为最高。"
+            )
+            result.technical_summary = {
+                "status": "veto_triggered",
+                "reason": insufficient_veto,
+                "overall_score": 100.0,
+                "risk_level": "high",
+                "tax_credit_veto": insufficient_veto,
+            }
+        else:
+            result.business_narrative = "暂无足够经营数据用于风险评估，请补充企业财务数据。"
+            result.technical_summary = {"status": "insufficient_data"}
         return result
 
     # ── 四流匹配计算 ──
@@ -635,24 +688,40 @@ def assess_enterprise_risk(
     result.dimension_scores = {k: round(v, 2) for k, v in dimension_scores.items()}
 
     overall = sum(
-        score * RISK_WEIGHTS[dim]
+        score * weights[dim]
         for dim, score in dimension_scores.items()
     )
     result.overall_risk_score = round(overall, 2)
 
     # ── 一票否决规则 ──
-    high_count = sum(1 for score in dimension_scores.values() if score >= 70)
-    if high_count >= 2 and result.overall_risk_score < RISK_HIGH_THRESHOLD:
-        # 2个及以上维度超过70分 → 提升至高风险
-        result.overall_risk_score = RISK_HIGH_THRESHOLD
-    elif high_count >= 1 and result.overall_risk_score < RISK_MEDIUM_THRESHOLD:
-        # 1个维度超过70分 → 至少中等风险
-        result.overall_risk_score = RISK_MEDIUM_THRESHOLD
+    high_count = sum(1 for score in dimension_scores.values() if score >= high_dim_threshold)
+    if high_count >= 2 and result.overall_risk_score < high_threshold:
+        # 2个及以上维度超过阈值 → 提升至高风险
+        result.overall_risk_score = high_threshold
+    elif high_count >= 1 and result.overall_risk_score < medium_threshold:
+        # 1个维度超过阈值 → 至少中等风险
+        result.overall_risk_score = medium_threshold
+
+    # ── 一票否决扩展：纳税信用 D 级 / 涉税犯罪（2025 年第 12 号 / 刑法第 201 条）──
+    # 触发则风险分强制置顶、且修复加分不计（由 compliance_adjustment 拦截）
+    tax_credit_veto_reason = resolve_tax_credit_veto(
+        enterprise_input.tax_credit_level,
+        enterprise_input.tax_crime_convicted,
+    )
+    if tax_credit_veto_reason:
+        result.overall_risk_score = 100.0
+        result.overall_risk_level = "high"
+        result.risk_flags.append(tax_credit_veto_reason)
+        result.recommendations.append(
+            "纳税信用 D 级 / 涉税犯罪为直接判级情形：立即委托税务师与律师制定补缴、"
+            "滞纳金与罚款处置方案，依据《纳税缴费信用管理办法》（2025 年第 12 号）"
+            "申请纳税缴费信用修复，并保留全部整改凭证以备合规考察。"
+        )
 
     # ── 风险等级判定 ──
-    if result.overall_risk_score >= RISK_HIGH_THRESHOLD:
+    if result.overall_risk_score >= high_threshold:
         result.overall_risk_level = "high"
-    elif result.overall_risk_score >= RISK_MEDIUM_THRESHOLD:
+    elif result.overall_risk_score >= medium_threshold:
         result.overall_risk_level = "medium"
     else:
         result.overall_risk_level = "low"
@@ -668,13 +737,14 @@ def assess_enterprise_risk(
         "dimension_details": dim_details,
         "overall_score": result.overall_risk_score,
         "risk_level": result.overall_risk_level,
-        "weights": RISK_WEIGHTS,
+        "weights": weights,
         "flags_count": len(result.risk_flags),
         "thresholds": {
-            "high": RISK_HIGH_THRESHOLD,
-            "medium": RISK_MEDIUM_THRESHOLD,
+            "high": high_threshold,
+            "medium": medium_threshold,
         },
         "veto_triggered": high_count >= 1,
+        "tax_credit_veto": tax_credit_veto_reason,
     }
 
     return result
