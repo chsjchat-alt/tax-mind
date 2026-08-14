@@ -79,7 +79,7 @@ async def run_simulation_endpoint(
     risk_level = "low"
     risk_result = await db.execute(
         select(RiskAssessment).where(
-            RiskAssessment.enterprise_id == enterprise_id
+            RiskAssessment.enterprise_id == ent_id
         ).order_by(RiskAssessment.assessment_date.desc()).limit(1)
     )
     latest = risk_result.scalar_one_or_none()
