@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { Progress } from 'antd';
 import {
   RightOutlined, SafetyCertificateOutlined, SwapOutlined,
-  AimOutlined, CheckSquareOutlined,
+  CheckSquareOutlined,
 } from '@ant-design/icons';
 import { RISK_COLORS, RISK_LABELS } from '@/types';
 import type { RiskLevel } from '@/types';
@@ -16,8 +16,6 @@ interface MetricCardsProps {
   /** 原始风险评分（整改前口径，用于双栏展示） */
   originalRiskScore?: number;
   fourFlowMatchScore: number;
-  deviationIndex: number | null;
-  deviationBaseline: number;
   pendingTasks: number;
 }
 
@@ -38,12 +36,12 @@ function cardProps(navigate: ReturnType<typeof useNavigate>, path: string) {
 
 export default function MetricCards({
   adjustedRiskLevel, adjustedRiskScore, originalRiskScore, fourFlowMatchScore,
-  deviationIndex, deviationBaseline, pendingTasks,
+  pendingTasks,
 }: MetricCardsProps) {
   const navigate = useNavigate();
 
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
       {/* 卡片1：总体风险等级 → 风险地图 */}
       <div
         className="bg-white rounded-xl border border-gray-200 p-5 hover:shadow-md cursor-pointer hover:border-primary/40 transition-all"
@@ -111,54 +109,6 @@ export default function MetricCards({
               showInfo={false}
               style={{ width: 100 }}
             />
-          </div>
-        </div>
-      </div>
-
-      {/* 卡片3：偏差指数 vs 基准线 → 心理画像 */}
-      <div
-        className="bg-white rounded-xl border border-gray-200 p-5 hover:shadow-md cursor-pointer hover:border-primary/40 transition-all"
-        {...cardProps(navigate, '/profile')}
-      >
-        <div className="flex items-center justify-between mb-2">
-          <p className="text-sm text-gray-500">偏差指数</p>
-          <RightOutlined className="text-gray-300 text-xs" />
-        </div>
-        <div className="flex items-center gap-3">
-          <AimOutlined
-            className="text-xl"
-            style={{
-              color: deviationIndex !== null
-                ? (deviationIndex >= 70 ? RISK_COLORS.high :
-                   deviationIndex >= 55 ? RISK_COLORS.medium_high :
-                   deviationIndex >= 40 ? RISK_COLORS.medium : RISK_COLORS.low)
-                : '#94a3b8',
-            }}
-          />
-          <div>
-            <div className="flex items-baseline gap-2">
-              <p className="text-xl font-bold">
-                {deviationIndex !== null ? deviationIndex.toFixed(0) : '--'}
-              </p>
-              <span className="text-xs text-gray-400">
-                基准线 {deviationBaseline}
-              </span>
-            </div>
-            {deviationIndex !== null && (
-              <div className="flex items-center gap-1 text-xs">
-                <span
-                  className={
-                    deviationIndex > deviationBaseline ? 'text-red-500' : 'text-green-500'
-                  }
-                >
-                  {deviationIndex > deviationBaseline ? '↑' : '↓'}
-                  {Math.abs(deviationIndex - deviationBaseline).toFixed(0)}
-                </span>
-                <span className="text-gray-400">
-                  距基准线
-                </span>
-              </div>
-            )}
           </div>
         </div>
       </div>

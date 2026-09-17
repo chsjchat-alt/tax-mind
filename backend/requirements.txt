@@ -1,4 +1,4 @@
-# 税智·心判 依赖清单
+# 蒙牛全产业链 AI 内生合规决策大脑 依赖清单
 # Python 3.11+, PostgreSQL 15+
 
 # ── Web 框架 ──
@@ -39,3 +39,18 @@ openpyxl>=3.1.0,<4.0.0
 # psycopg2-binary 兜底：避免任何同步 postgresql:// 方言路径（如旧式 engine）
 # 触发 "No module named 'psycopg2'"（预编译 wheel，无需 libpq 编译）
 psycopg2-binary>=2.9.9
+
+# ── Rule ID 法规治理矩阵（V4 §十一） ──
+# zen-engine: MIT License，Rust core + Python 绑定（gorules/zen）
+# 注意：2.x 起导入模块名为 zen（包名仍为 zen-engine）；规则图节点类型/边 schema 与 1.x 不同
+zen-engine>=2.0,<2.1
+
+# ── 品名受控模糊匹配增强（V4 §3.1 四流稽核） ──
+# rapidfuzz: MIT License（rapidfuzz/RapidFuzz）
+# 定位为现有 Jaccard 评分器的受控增强层（双分数对照），默认评分路径与阈值常量不变
+rapidfuzz>=3.0,<4.0
+
+# ── 同期资料 PDF 解析（V4 §七 TP 工作台） ──
+# pdfplumber: MIT License（jsvine/pdfplumber）
+# 局限：扫描件（图片型）PDF 无文本层，须配合 OCR 路径
+pdfplumber>=0.11,<0.12

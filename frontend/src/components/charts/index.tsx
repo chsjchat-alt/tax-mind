@@ -4,7 +4,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Cell,
   LineChart, Line, Area, AreaChart, ComposedChart, ReferenceLine,
 } from 'recharts';
-import { RISK_COLORS, BIAS_LABELS } from '@/types';
+import { RISK_COLORS } from '@/types';
 import type { SnowballTimePoint, TaxBurdenElasticityData, CostGaugeData } from '@/types';
 
 // 风险雷达图（7维度）
@@ -88,26 +88,6 @@ export function FourFlowGauge({ score, size = 120 }: { score: number; size?: num
         <text x="60" y="75" textAnchor="middle" fontSize="10" fill="#94a3b8">匹配度</text>
       </svg>
     </div>
-  );
-}
-
-export function ProfileRadarChart({ scores }: { scores: Record<string, number> }) {
-  const data = Object.entries(scores).map(([key, value]) => ({
-    dimension: BIAS_LABELS[key] || key,
-    score: value,
-    fullMark: 100,
-  }));
-
-  return (
-    <ResponsiveContainer width="100%" height={380}>
-      <RadarChart data={data}>
-        <PolarGrid stroke="#e2e8f0" />
-        <PolarAngleAxis dataKey="dimension" tick={{ fontSize: 12, fill: '#475569' }} />
-        <PolarRadiusAxis angle={90} domain={[0, 100]} tick={{ fontSize: 10 }} />
-        <Radar name="偏差评分" dataKey="score" stroke="#7C3AED" fill="#7C3AED" fillOpacity={0.2} />
-        <Tooltip formatter={(v: number) => [`${v}分`, '偏差评分']} />
-      </RadarChart>
-    </ResponsiveContainer>
   );
 }
 

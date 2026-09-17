@@ -2,7 +2,6 @@ import { NavLink } from 'react-router-dom'
 import {
   LayoutDashboard,
   Map,
-  Brain,
   FlaskConical,
   Shield,
   ClipboardCheck,
@@ -12,7 +11,6 @@ import {
 const menuItems = [
   { path: '/dashboard', label: '数据驾驶舱', icon: LayoutDashboard },
   { path: '/risk-map', label: '风险地图', icon: Map },
-  { path: '/profile', label: '心理画像', icon: Brain },
   { path: '/simulator', label: '风险模拟', icon: FlaskConical },
   { path: '/compliance', label: '合规导航', icon: Shield },
   { path: '/remediation', label: '整改追踪', icon: ClipboardCheck },
@@ -24,7 +22,7 @@ function Sidebar() {
     <aside className="w-60 bg-white border-r border-gray-200 flex flex-col shrink-0">
       {/* Logo */}
       <div className="h-16 flex items-center px-6 border-b border-gray-200">
-        <span className="text-lg font-bold text-primary">税智·心判</span>
+        <span className="text-lg font-bold text-primary">合规决策大脑</span>
       </div>
 
       {/* 导航菜单 */}

@@ -6,7 +6,7 @@
   2. 合规校验无发现（完全合规）→ 所有风险评级强制为 LOW
   3. 撤销合规任务 → 风险评分恢复
 
-所有需要展示风险等级/评分的模块（驾驶舱、风险地图、心理画像、
+所有需要展示风险等级/评分的模块（驾驶舱、风险地图、
 合规导航、整改追踪、报告中心）应通过本模块获取合规调整后的统一评分。
 """
 import logging
@@ -142,7 +142,7 @@ async def compute_compliance_adjusted_risk(
     thresholds = _load_thresholds(_config)
 
     # 0.6 兜底取数：未传 base_score / findings 时自动查最新评估，保证
-    #     所有调用点（profile/upload/simulation/ssf/reports/remediation 等）
+    #     所有调用点（risk_scan/upload/simulation/compliance_check/reports/remediation 等）
     #     统一走同一口径，避免各接口因漏传参数而偏离真实风险分。
     if base_score is None or compliance_findings_count is None:
         ra_result = await db.execute(

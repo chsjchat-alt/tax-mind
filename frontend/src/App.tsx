@@ -6,7 +6,6 @@ import { Spin, App as AntApp } from 'antd'
 // 页面组件（懒加载）
 const Dashboard = lazy(() => import('@/pages/Dashboard'))
 const RiskMap = lazy(() => import('@/pages/RiskMap'))
-const Profile = lazy(() => import('@/pages/Profile'))
 const Simulator = lazy(() => import('@/pages/Simulator'))
 const Compliance = lazy(() => import('@/pages/Compliance'))
 const Remediation = lazy(() => import('@/pages/Remediation'))
@@ -45,7 +44,6 @@ function App() {
             <Route index element={<Navigate to="/dashboard" replace />} />
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="risk-map" element={<RiskMap />} />
-            <Route path="profile" element={<Profile />} />
             <Route path="simulator" element={<Simulator />} />
             <Route path="compliance" element={<Compliance />} />
             <Route path="remediation" element={<Remediation />} />

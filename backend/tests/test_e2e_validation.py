@@ -2,9 +2,9 @@
 端到端验证脚本（跳过模式 — 需构造大批数据，耗时较长）
 
 验证：
-  1. 企业A（正常）：四流匹配度 ≈ 90+，总体风险 = low，偏差指数 < 50
-  2. 企业B（轻度风险）：四流匹配度 ≈ 70-80，总体风险 = medium，偏差指数 50-70
-  3. 企业C（重度风险）：四流匹配度 ≈ 40-55，总体风险 = high，偏差指数 > 70
+  1. 企业A（正常）：四流匹配度 ≈ 90+，总体风险 = low，风险偏离度 < 50
+  2. 企业B（轻度风险）：四流匹配度 ≈ 70-80，总体风险 = medium，风险偏离度 50-70
+  3. 企业C（重度风险）：四流匹配度 ≈ 40-55，总体风险 = high，风险偏离度 > 70
   4. 边界条件：零值 / 极值 / 双语输出
 
 环境变量 RUN_E2E_TESTS=1 来执行：
@@ -22,7 +22,6 @@ from app.core.four_flow_match import (
     ContractRecord, InvoiceRecord, BankTransactionRecord,
 )
 from app.core.risk_engine import assess_enterprise_risk, EnterpriseRiskInput
-from app.core.profile_engine import calculate_psychological_profile, BehavioralData
 from app.core.penalty_calculator import (
     calculate_compound_penalty_exposure,
     UnpaidTaxInput,

@@ -32,7 +32,7 @@ function Login() {
       >
         <div className="text-center mb-6">
           <Title level={3} className="!mb-1 text-slate-800">
-            税智·心判
+            蒙牛全产业链 AI 内生合规决策大脑
           </Title>
           <Text type="secondary">智能税务风险评估系统</Text>
         </div>

@@ -1,4 +1,4 @@
-# 「税智·心判」多维业态财税合规与内控决策支持系统
+# 「蒙牛全产业链 AI 内生合规决策大脑」多维业态财税合规与内控决策支持系统
 # 开发工作检验审阅报告
 
 > 依据文档：D:\安永\tax\赛事要求\新建文件夹\《税务智能系统优化项目计划书.docx》(V2优化版)
@@ -33,21 +33,21 @@
 | S2-R5 | **维度三**：个税隐性分红惩罚 —— 扫描"其他应收款"，筛选股东借款超365天，强制 ×20% | **已完成** | 100% | [tax_risk_engine.py](file:///d:/安永/tax/backend/app/core/tax_risk_engine.py#L526-L627): `_assess_iit_hidden_dividend()` 含 365 天超时检测 + 财税[2003]158号引用 |
 | S2-R6 | **维度四**：0.5-5倍浮动行政罚款 + 日万分之五单利复现滞纳金 | **已完成** | 100% | [penalty_calculator.py](file:///d:/安永/tax/backend/app/core/penalty_calculator.py): `calculate_compound_penalty_exposure()` 含多级罚款倍数 + 滞纳金累积逻辑 |
 | S2-R7 | 硬编码红线：所有数值运算强制 `decimal.Decimal`，严禁浮点数 | **已完成** | 100% | tax_risk_engine.py 全局使用 `Decimal`，手动 `quantize` 精度控制 |
-| S2-R8 | 硬编码红线：禁止依赖大模型进行任何数值推演 | **已完成** | 100% | 所有风险评分/罚款计算逻辑硬编码，仅 NBT 话术层调用 LLM |
+| S2-R8 | 硬编码红线：禁止依赖大模型进行任何数值推演 | **已完成** | 100% | 所有风险评分/罚款计算逻辑硬编码，仅干预话术层调用 LLM |
 
-### 阶段三：基于行为科学（SSF+NBT模型）的柔性干预同理心话术润色
+### 阶段三：合规柔性干预策略与 LLM 话术润色
 
 | 编号 | 计划书要求 | 实现状态 | 达标程度 | 证据/偏差说明 |
 |------|-----------|---------|---------|-------------|
-| S3-R1 | NBT 三层结构输出：Nudge / Budge / Trudge | **已完成** | 100% | [llm_intervention_service.py](file:///d:/安永/tax/backend/app/services/llm_intervention_service.py): System Prompt 强制三层 JSON 输出 |
-| S3-R2 | **Nudge 层**：直击行业痛点（轻资产缺合法进项/重资产折旧异常），色彩心理学建议，直白预警稽查概率 | **已完成** | 100% | Mock 模板精确覆盖计划书要求；前端 [RiskMap.tsx](file:///d:/安永/tax/frontend/src/pages/RiskMap.tsx) 实现 #EF4444 高压渲染，display "稽查概率达94%" |
-| S3-R3 | **Budge 层**：损失框架对比——未来三年复合损失 vs 当期零罚款整改 | **已完成** | 100% | Mock 模板 + 前端 [Simulator.tsx](file:///d:/安永/tax/frontend/src/pages/Simulator.tsx) 指数雪球组件渲染"本金+3.5倍罚款+日万分之五×1095天" |
-| S3-R4 | **Trudge 层**：对标国税发[2009]90号的微任务 SOP 列表（3-6项） | **已完成** | 100% | Mock 含 5 项 `micro_tasks`；前端 [TrudgeChecklist](file:///d:/安永/tax/frontend/src/components/simulator/index.tsx) 实现可打勾的交互式微任务列表+进度条 |
+| S3-R1 | 五层递进式合规干预策略输出 | **已完成** | 100% | [intervention.py](file:///d:/安永/tax/backend/app/core/intervention.py): `InterventionResult.layers`（五层）+ `priority_order` |
+| S3-R2 | 结合风险等级与稽查概率生成分层干预话术 | **已完成** | 100% | 前端 [RiskMap.tsx](file:///d:/安永/tax/frontend/src/pages/RiskMap.tsx) #EF4444 高压渲染 + [Compliance.tsx](file:///d:/安永/tax/frontend/src/pages/Compliance.tsx) 五层合规干预展示 |
+| S3-R3 | **损失具象化**：未来复合损失 vs 当期整改成本对比 | **已完成** | 100% | 前端 [Simulator.tsx](file:///d:/安永/tax/frontend/src/pages/Simulator.tsx) 指数雪球双路径对比（合规路径 vs 隐匿路径） |
+| S3-R4 | 合规微任务 SOP 列表（3-6项） | **已完成** | 100% | [trudge_toolbox.py](file:///d:/安永/tax/backend/app/core/trudge_toolbox.py) + 前端 [TrudgeChecklist](file:///d:/安永/tax/frontend/src/components/simulator/index.tsx) 可打勾微任务列表+进度条 |
 | S3-R5 | **红线**：绝对禁止对 JSON 中的金额/税率数值进行篡改或四舍五入 | **已完成** | 100% | System Prompt 第144行明确声明"所有金额数字必须与输入数据完全一致，不得四舍五入或修改" |
 | S3-R6 | **红线**：语气专业克制，围绕"合规长期安全价值"展开 | **已完成** | 100% | Mock 模板 + System Prompt 第146行"以建设性合作伙伴的姿态收尾" |
-| S3-R7 | 大模型调用机制：超时30s + 3次指数退避重试 | **已完成** | 100% | [llm_intervention_service.py](file:///d:/安永/tax/backend/app/services/llm_intervention_service.py#L58-L60): `LLM_TIMEOUT_SEC = 30`，`LLM_MAX_RETRIES = 3`，指数退避 `1.5 * 2^(n-1)` |
-| S3-R8 | API 协议：DeepSeek + Qwen OpenAI 兼容模式 + `response_format: json_object` | **已完成** | 100% | [llm_intervention_service.py](file:///d:/安永/tax/backend/app/services/llm_intervention_service.py#L379): 强制 `{"type": "json_object"}` |
-| S3-R9 | Pydantic 严格校验 LLM 返回的 JSON 结构 | **已完成** | 100% | [nbt_intervention.py](file:///d:/安永/tax/backend/app/schemas/nbt_intervention.py): `NBTInterventionResponse` + `NudgeLayer` + `BridgeLayer` + `TrudgeLayer` |
+| S3-R7 | 大模型调用机制：超时30s + 3次指数退避重试 | **已完成** | 100% | [llm_service.py](file:///d:/安永/tax/backend/app/services/llm_service.py): `LLM_TIMEOUT = 30`、`LLM_MAX_RETRIES = 3`、`_call_with_retry` 指数退避 |
+| S3-R8 | API 协议：DeepSeek + Qwen OpenAI 兼容模式 | **已完成** | 100% | [llm_service.py](file:///d:/安永/tax/backend/app/services/llm_service.py): `ALLOWED_MODELS = {"deepseek", "qwen"}` |
+| S3-R9 | Pydantic 严格校验干预返回结构 | **已完成** | 100% | [compliance.py](file:///d:/安永/tax/backend/app/schemas/compliance.py) + [intervention.py](file:///d:/安永/tax/backend/app/core/intervention.py): `InterventionResult` + `InterventionLayer` |
 | S3-R10 | Mock 降级机制（LLM 不可用时） | **已完成** | 100% | `_generate_mock_fallback()` + API 端点超时时自动降级 |
 
 ### 阶段四：CI/CD自动化部署流水线与公网动态脱敏安全沙盒构建
@@ -69,12 +69,11 @@
 | 编号 | 计划书要求（原计划书 Phase 6 + V2 优化） | 实现状态 | 达标程度 | 证据 |
 |------|---------------------------------------|---------|---------|------|
 | F-R1 | Dashboard 数据驾驶舱 | **已完成** | 100% | [Dashboard.tsx](file:///d:/安永/tax/frontend/src/pages/Dashboard.tsx) |
-| F-R2 | RiskMap 风险可视化地图 —— 含商业模式锚点 + 双轨雷达 + NBT 渲染 | **已完成（增强版）** | 100% | [RiskMap.tsx](file:///d:/安永/tax/frontend/src/pages/RiskMap.tsx): 重资产/轻资产动态标识、成本费用率弧线、税负弹性系数图、#EF4444 高压渲染 |
-| F-R3 | Profile 心理画像仪 | **已完成** | 100% | [Profile.tsx](file:///d:/安永/tax/frontend/src/pages/Profile.tsx) |
-| F-R4 | Simulator 沉浸式风险模拟器 —— 含指数雪球 + Trudge Checklist | **已完成（增强版）** | 100% | [Simulator.tsx](file:///d:/安永/tax/frontend/src/pages/Simulator.tsx): 双路径对比（指数雪球 vs 整改低平线）+ 可打勾 SOP |
-| F-R5 | Compliance 合规导航仪 | **已完成** | 100% | [Compliance.tsx](file:///d:/安永/tax/frontend/src/pages/Compliance.tsx) |
-| F-R6 | Remediation 整改追踪器 | **已完成** | 100% | [Remediation.tsx](file:///d:/安永/tax/frontend/src/pages/Remediation.tsx) |
-| F-R7 | Reports 报告查看页 | **已完成** | 100% | [Reports.tsx](file:///d:/安永/tax/frontend/src/pages/Reports.tsx) |
+| F-R2 | RiskMap 风险可视化地图 —— 含商业模式锚点 + 双轨雷达 + 高压渲染 | **已完成（增强版）** | 100% | [RiskMap.tsx](file:///d:/安永/tax/frontend/src/pages/RiskMap.tsx): 重资产/轻资产动态标识、成本费用率弧线、税负弹性系数图、#EF4444 高压渲染 |
+| F-R3 | Simulator 沉浸式风险模拟器 —— 含指数雪球 + Trudge Checklist | **已完成（增强版）** | 100% | [Simulator.tsx](file:///d:/安永/tax/frontend/src/pages/Simulator.tsx): 双路径对比（指数雪球 vs 整改低平线）+ 可打勾 SOP |
+| F-R4 | Compliance 合规导航仪 | **已完成** | 100% | [Compliance.tsx](file:///d:/安永/tax/frontend/src/pages/Compliance.tsx) |
+| F-R5 | Remediation 整改追踪器 | **已完成** | 100% | [Remediation.tsx](file:///d:/安永/tax/frontend/src/pages/Remediation.tsx) |
+| F-R6 | Reports 报告查看页 | **已完成** | 100% | [Reports.tsx](file:///d:/安永/tax/frontend/src/pages/Reports.tsx) |
 
 
 ## 第二部分：问题分析结论
@@ -85,7 +84,7 @@
 
 - **数据库层**：`IndustryBenchmark` 模型完整实现，字段名、枚举名、NUMERIC 精度控制与计划书 TABLE 3 完全一致。`AssetType.HEAVY / LIGHT` 枚举、`std_tax_burden_rate`、`max_cost_expense_ratio`、`depreciation_to_revenue_ratio` 全部存在。
 - **五维引擎**：`calculate_comprehensive_tax_risk()` 的五维评估逻辑——成本费用率 1.5 倍阻断、GAAR 回路检测、个税 365 天穿透、复合罚款敞口、四流匹配——全部在 `tax_risk_engine.py` 中以 `decimal.Decimal` 硬编码实现，计划书 TABLE 4 的技术红线被严格遵守。
-- **NBT 干预**：三层 JSON 结构（Nudge/Budge/Trudge）、System Prompt 的业务指引、DeepSeek/Qwen 双端点、30 秒超时 + 3 次指数退避重试、`response_format: json_object` 强制 JSON 输出——均与计划书 TABLE 5 一致。Mock 降级策略完整，前端 TrudgeChecklist 交互组件已实现。
+- **合规干预**：五层递进式干预策略（intervention.py）+ 合规微任务 SOP（trudge_toolbox.py）+ LLM 话术润色（llm_service.py，DeepSeek/Qwen 双端点、30 秒超时 + 3 次指数退避重试）——与计划书 TABLE 5 对齐。未配置 API Key 时降级 Mock，前端 TrudgeChecklist 交互组件已实现。
 - **CI/CD + 部署**：GitHub Actions 硬阻断部署、Docker compose 安全加固、Nginx Rate Limiting + TLS 1.3、数据脱敏播种器——与计划书 TABLE 6 100% 匹配。
 - **脱敏红线**：GB 32100 虚拟信用代码生成算法、PII 不可逆星号掩码、行业异质性业务逻辑校验（重资产折旧 30%-50% 总成本、轻资产高频无形劳务 + 大额公转私）——全部实现。
 
@@ -94,8 +93,8 @@
 | 编号 | 问题描述 | 成因分析 | 影响范围 | 风险等级 |
 |------|---------|---------|---------|---------|
 | P1 | **测试覆盖率未验证**：7 个核心算法测试文件存在，但从未运行 `pytest --cov` 报告。计划书 Phase 7 要求 core/ 覆盖率 ≥ 90%。 | Phase 7 标注为 [MVP建议]，在"核心功能优先"策略下被推后 | 回归保护缺失 | **中** |
-| P2 | **API 测试缺失**：计划书第七部分要求的 3 个 API 测试文件（`test_api_risk_scan.py`、`test_api_profile.py`、`test_api_simulation.py`）不存在 | 同上，且后端 API 层在计划书中标注为 [MVP必做] 但 API 测试为 [扩展可选] | 接口回归保护缺失 | **低** |
-| P3 | **前端测试缺失**：`frontend/src/__tests__/` 目录完全不存在，计划书第七部分要求 4 个前端组件测试 | 前端测试在计划书中标注为 [MVP建议]，且 NBT 重构后测试依赖 LLM Mock 增加编写难度 | 组件回归保护缺失 | **低** |
+| P2 | **API 测试缺失**：计划书第七部分要求的 2 个 API 测试文件（`test_api_risk_scan.py`、`test_api_simulation.py`）不存在 | 同上，且后端 API 层在计划书中标注为 [MVP必做] 但 API 测试为 [扩展可选] | 接口回归保护缺失 | **低** |
+| P3 | **前端测试缺失**：`frontend/src/__tests__/` 目录完全不存在，计划书第七部分要求 4 个前端组件测试 | 前端测试在计划书中标注为 [MVP建议]，且 干预链重构后测试依赖 LLM Mock 增加编写难度 | 组件回归保护缺失 | **低** |
 | P4 | **项目文档缺失**：`docs/architecture.md`、`docs/api.md`、`docs/deployment.md`、`docs/ai_collaboration_log.md` 均不存在 | Phase 8 [MVP建议]，在安全基础设施优先策略下被推后 | 交付完整性 | **中**（`ai_collaboration_log.md` 为比赛提交必备） |
 | P5 | **已知 P2 技术债**：进销项品名匹配率为随机概率法（非集合交并集）；`industry_benchmarks.json` 缺少 `private_card_ratio_mean` 字段；`test_e2e_validation.py` 阻塞全量测试 | 在"不影响核心逻辑"的判断下暂缓修复 | 算法可信度（评委深入追问时可能暴露） | **低** |
 
@@ -111,7 +110,7 @@
 
 | 编号 | 任务 | 整改路径 | 预计工作量 | 责任主体 |
 |------|------|---------|-----------|---------|
-| P0-1 | **补齐 `docs/ai_collaboration_log.md`** | 参照计划书第十章"AI协作日志模板"，按 Phase 1-8 记录人机协作过程，含关键决策点（如 NBT 模型的红线设定、Decimal 精度强制的设计理由） | 0.5天 | AI 智能体 + 人工审核 |
+| P0-1 | **补齐 `docs/ai_collaboration_log.md`** | 参照计划书第十章"AI协作日志模板"，按 Phase 1-8 记录人机协作过程，含关键决策点（如合规干预话术的红线设定、Decimal 精度强制的设计理由） | 0.5天 | AI 智能体 + 人工审核 |
 | P0-2 | **运行 `pytest --cov` 验证覆盖率 ≥ 90%** | ① 先修复 `test_e2e_validation.py` 的 `sys.exit(0)` 阻塞问题；② 运行 `pytest tests/ --cov=app/core --cov-report=term --cov-fail-under=90`；③ 若未达标，补充边界测试 | 0.5-1天 | 开发人员 |
 | P0-3 | **补齐 `docs/architecture.md`** | 输出五维引擎架构图（Mermaid）、数据流图、前端组件树、部署拓扑图 | 0.5天 | AI 智能体 | **已完成** |
 
@@ -120,7 +119,7 @@
 | 编号 | 任务 | 整改路径 | 预计工作量 | 责任主体 |
 |------|------|---------|-----------|---------|
 | P1-1 | **补齐 `docs/api.md`** | 基于 FastAPI 自动生成的 OpenAPI JSON (`/openapi.json`)，整理为含业务说明的 API 文档 | 0.5天 | AI 智能体 | **已完成** |
-| P1-2 | **补齐 API 层测试（3 个文件）** | 编写 `test_api_risk_scan.py`、`test_api_profile.py`、`test_api_simulation.py`，使用 httpx.AsyncClient 测试 endpoints | 1天 | 开发人员 |
+| P1-2 | **补齐 API 层测试（2 个文件）** | 编写 `test_api_risk_scan.py`、`test_api_simulation.py`，使用 httpx.AsyncClient 测试 endpoints | 1天 | 开发人员 |
 | P1-3 | **修复进销项品名匹配算法** | 将 `risk_engine.py` 或 `four_flow_match.py` 中的随机概率法替换为基于商品名称集合交并集（Jaccard 相似度）的严格匹配 | 0.5天 | 开发人员 |
 | P1-4 | **补充 `industry_benchmarks.json` 的 `private_card_ratio_mean`** | 在 JSON 中为每个行业增加 `private_card_ratio_mean` 字段，并更新 `risk_engine.py` 使私卡评分引用该锚点 | 0.5天 | 开发人员 |
 | P1-5 | **补齐 `docs/deployment.md`** | 含 Docker Compose 一键启动、环境变量配置、模拟数据播种、常见问题排查 | 0.5天 | AI 智能体 |
@@ -129,7 +128,7 @@
 
 | 编号 | 任务 | 整改路径 | 预计工作量 | 责任主体 |
 |------|------|---------|-----------|---------|
-| P2-1 | **前端组件测试（4 个文件）** | 配置 vitest + @testing-library/react，编写 Dashboard/RiskMap/Profile/Simulator 测试，Mock API 和 Zustand store | 2-3天 | 前端开发人员 |
+| P2-1 | **前端组件测试（4 个文件）** | 配置 vitest + @testing-library/react，编写 Dashboard/RiskMap/Compliance/Simulator 测试，Mock API 和 Zustand store | 2-3天 | 前端开发人员 |
 | P2-2 | **`test_mock_data.py`** | 验证自动生成的 50+ 企业数据特征：重资产折旧占比 30-50%、轻资产无形劳务进项占比、PII 全掩码 | 0.5天 | 开发人员 |
 
 ---
@@ -142,20 +141,20 @@
 |---------|-------------|--------|---------|--------|--------|
 | 阶段一：数据库基建 | 7 | 7 | 0 | 0 | **100%** |
 | 阶段二：硬编码风控引擎 | 8 | 8 | 0 | 0 | **100%** |
-| 阶段三：NBT 柔性干预 | 10 | 10 | 0 | 0 | **100%** |
+| 阶段三：合规柔性干预 | 10 | 10 | 0 | 0 | **100%** |
 | 阶段四：CI/CD + 脱敏沙盒 | 9 | 9 | 0 | 0 | **100%** |
-| 前端页面（原计划书 Phase 6） | 7 | 7 | 0 | 0 | **100%** |
+| 前端页面（原计划书 Phase 6） | 6 | 6 | 0 | 0 | **100%** |
 | 测试 (Phase 7) | 14 | 7 | 0 | 7 | **50%** |
 | 文档 (Phase 8) | 5 | 0 | 0 | 5 | **0%** |
-| **合计** | **60** | **48** | **0** | **12** | **80%** |
+| **合计** | **59** | **47** | **0** | **12** | **80%** |
 
 **若按 V2 优化版计划书第六章四阶段核心指令（不含原计划书测试/文档等 [MVP建议] 标注项）评估：34/34 = 100%。**
 
 ### 4.2 结论
 
-1. **核心功能交付完整度：100%。** V2 优化版计划书第六章"Prompt Playbook"中四个阶段的所有核心功能指令均已 100% 交付且通过代码交叉验证。其中包括计划书中明确标注为技术红线的 7 条硬约束——`decimal.Decimal` 强制、成本费用率 1.5 倍阻断、GAAR 回路检测、个税 365 天穿透、星号掩码脱敏、Exit code ≠ 0 硬阻断部署、NBT 数值不可篡改——全部得到严格遵守。
+1. **核心功能交付完整度：100%。** V2 优化版计划书第六章"Prompt Playbook"中四个阶段的所有核心功能指令均已 100% 交付且通过代码交叉验证。其中包括计划书中明确标注为技术红线的 7 条硬约束——`decimal.Decimal` 强制、成本费用率 1.5 倍阻断、GAAR 回路检测、个税 365 天穿透、星号掩码脱敏、Exit code ≠ 0 硬阻断部署、干预数值不可篡改——全部得到严格遵守。
 
-2. **超出原始计划书的部分：** 前端 RiskMap.tsx 和 Simulator.tsx 已全面融入 NBT 三层行为干预可视化组件，TrudgeChecklist 可交互打卡系统在前端实现而非后端纯文本输出，安全基础设施（Rate Limiting + TLS 1.3 + DDoS防护）为计划书"公网安全沙盒"要求的超规格实现。
+2. **超出原始计划书的部分：** 前端 RiskMap.tsx 和 Simulator.tsx 已融入合规干预可视化组件（损失具象化 + Trudge SOP），TrudgeChecklist 可交互打卡系统在前端实现而非后端纯文本输出，安全基础设施（Rate Limiting + TLS 1.3 + DDoS防护）为计划书"公网安全沙盒"要求的超规格实现。
 
 3. **关键差距：** 测试覆盖率验证（P0-1）和项目文档（P0-2/P0-3）为当前最紧迫的缺口。`ai_collaboration_log.md` 是比赛提交的硬性要求，需要在所有开发工作完成后集中填写。两项 P0 任务合计约 1.5 个工作日可完成。
 

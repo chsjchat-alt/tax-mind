@@ -529,3 +529,90 @@ def calculate_four_flow_match(
     }
 
     return result
+
+
+# ════════════════════════════════════════════════════════════════════
+# 品名受控模糊匹配增强层（V4 §3.1，采纳开源调研结论：rapidfuzz, MIT）
+#
+# 定位与边界（重要）：
+#   - 默认评分路径（calculate_four_flow_match）与本增强层完全解耦；
+#     本层为「可选辅助评分器」，输出双分数对照（Jaccard vs rapidfuzz），
+#     供人工复核与阈值标定使用，不改变上述任何阈值常量与权重（SSOT 不变）。
+#   - rapidfuzz 打分口径与 Jaccard 不同（token_set_ratio 对词序/重复更鲁棒），
+#     切换前必须以双分数跑基准对照（见 docs/OPEN_SOURCE_INTEGRATION.md）。
+# ════════════════════════════════════════════════════════════════════
+
+def _normalize_product_text(product_name: str) -> str:
+    """
+    品名文本归一化（rapidfuzz 匹配前预处理）：
+    复用 _normalize_key（全半角/大小写归一），再移除分隔符与单字符 token。
+    """
+    return " ".join(sorted(_tokenize_product_name(_normalize_key(product_name or ""))))
+
+
+def calculate_product_match_dual(
+    input_invoices: list[InvoiceRecord],
+    output_invoices: list[InvoiceRecord],
+) -> dict:
+    """
+    进销项品名双分数对照评分器（辅助，不影响主评分）。
+
+    Returns:
+        {
+          "available": bool,          # rapidfuzz 是否可用
+          "jaccard": float,           # 现行 Jaccard 评分器结果（默认口径）
+          "rapidfuzz_token_set": float|None,  # rapidfuzz token_set_ratio 聚合（0-1）
+          "best_pairs": list[dict],   # 最佳匹配对（供人工复核抽证）
+        }
+
+    聚合口径：对进项侧每个品名取其与销项侧所有品名的最高 token_set_ratio，
+    再按进项侧算术平均；双方均无数据返回 1.0（与 Jaccard 口径一致，不扣分），
+    仅单侧有数据返回 0.5（中性分，避免虚高）。
+    """
+    input_names = [
+        _normalize_product_text(inv.product_name)
+        for inv in input_invoices if inv.invoice_type == "input"
+    ]
+    output_names = [
+        _normalize_product_text(inv.product_name)
+        for inv in output_invoices if inv.invoice_type == "output"
+    ]
+    input_names = [n for n in input_names if n]
+    output_names = [n for n in output_names if n]
+
+    jaccard = _calculate_product_jaccard(input_invoices, output_invoices)
+
+    dual: dict = {
+        "available": False,
+        "jaccard": round(jaccard, 4),
+        "rapidfuzz_token_set": None,
+        "best_pairs": [],
+    }
+    if not input_names and not output_names:
+        dual["rapidfuzz_token_set"] = 1.0
+        return dual
+    if not input_names or not output_names:
+        dual["rapidfuzz_token_set"] = 0.5
+        return dual
+
+    try:
+        from rapidfuzz import fuzz  # MIT License（可选依赖，缺失时降级）
+    except ImportError:  # pragma: no cover - 未安装 rapidfuzz 时降级返回
+        return dual
+
+    dual["available"] = True
+    per_input_scores: list[float] = []
+    for in_name in input_names:
+        best_score, best_out = 0.0, ""
+        for out_name in output_names:
+            score = fuzz.token_set_ratio(in_name, out_name) / 100.0
+            if score > best_score:
+                best_score, best_out = score, out_name
+        per_input_scores.append(best_score)
+        dual["best_pairs"].append({
+            "input": in_name, "output": best_out, "score": round(best_score, 4),
+        })
+    dual["rapidfuzz_token_set"] = round(
+        sum(per_input_scores) / len(per_input_scores), 4
+    )
+    return dual

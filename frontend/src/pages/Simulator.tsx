@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { AlertOutlined } from '@ant-design/icons';
 import { useEnterpriseStore } from '@/store';
-import { simulationApi, complianceApi } from '@/api';
+import { simulationApi } from '@/api';
 import {
   SimulationInputForm,
   LossFrameMessage,
@@ -10,14 +10,13 @@ import {
   ThirdPartyConsequenceCard,
   PeerPressureCard,
   OfficialNoticeCard,
-  NPTMixBar,
   TrudgeToolbox,
 } from '@/components/simulator';
 import { ExponentialSnowballChart } from '@/components/charts';
 import { LoadingSpinner, EmptyState, TableContainer } from '@/components/common';
 import type {
   SimulationResult, SnowballTimePoint,
-  TrudgeLayer, NPTDynamicMix,
+  TrudgeLayer,
 } from '@/types';
 
 // ── 默认值 ──
@@ -154,11 +153,9 @@ function Simulator() {
   const [result, setResult] = useState<SimulationResult | null>(null);
   const [loading, setLoading] = useState(false);
 
-  // NBT Trudge 数据
+  // 合规微任务（Trudge SOP）数据
   const [trudgeData, setTrudgeData] = useState<TrudgeLayer | null>(null);
   const [trudgeLoading] = useState(false);
-    // P1: NPT 动态配比
-  const [dynamicMix, setDynamicMix] = useState<NPTDynamicMix | null>(null);
 
   const enterpriseId = currentEnterprise?.id;
 
@@ -170,7 +167,6 @@ function Simulator() {
   useEffect(() => {
     setResult(null);
     setTrudgeData(null);
-    setDynamicMix(null);
     if (currentEnterprise) {
       if (currentEnterprise.risk_level === 'critical') setRemediationCost(120);
       else if (currentEnterprise.risk_level === 'high') setRemediationCost(80);
@@ -185,22 +181,14 @@ function Simulator() {
     if (!enterpriseId) return;
     setLoading(true);
     try {
-      const [simRes, nbtRes] = await Promise.all([
-        simulationApi.run(enterpriseId, {
-          monthly_hidden_revenue: monthlyRevenue * 10000,
-          comprehensive_tax_rate: taxRate / 100,
-          remediation_cost: remediationCost * 10000,
-        }),
-        complianceApi.nbtIntervention(enterpriseId, {
-          monthly_hidden_revenue: monthlyRevenue * 10000,
-          comprehensive_tax_rate: taxRate / 100,
-          remediation_cost: remediationCost * 10000,
-          risk_level: riskLevel,
-        }).catch(() => ({ data: { data: null } })),
-      ]);
+      const simRes = await simulationApi.run(enterpriseId, {
+        monthly_hidden_revenue: monthlyRevenue * 10000,
+        comprehensive_tax_rate: taxRate / 100,
+        remediation_cost: remediationCost * 10000,
+      });
       setResult(simRes.data.data ?? null);
-      setTrudgeData(nbtRes.data.data?.trudge ?? null);
-      setDynamicMix(nbtRes.data.data?.dynamic_mix ?? null);
+      // 一期边界（V4 §5.4）：分层干预已下线，trudgeData 恒为空
+      setTrudgeData(null);
     } catch {
       setResult(null);
       setTrudgeData(null);
@@ -220,7 +208,7 @@ function Simulator() {
     ? Math.round(snowballData[snowballData.length - 1].path_a_snowball / 10000)
     : 0;
 
-  // 使用后端返回的或降级的 Trudge 数据
+  // 使用后端返回的或降级的合规微任务数据
   const activeTrudge: TrudgeLayer = trudgeData && trudgeData.micro_tasks?.length > 0
     ? trudgeData
     : {
@@ -262,7 +250,7 @@ function Simulator() {
 
       {/* ═══ 模拟结果 ═══ */}
       {loading ? (
-        <LoadingSpinner text="正在运行风险模拟与行为干预分析..." />
+        <LoadingSpinner text="正在运行风险模拟与合规干预分析..." />
       ) : result ? (
         <>
           {/* ═══ 指数级雪球对比图 ═══ */}
@@ -390,11 +378,6 @@ function Simulator() {
               )}
             </div>
           </div>
-
-          {/* ═══ P1: NPT 动态配比 ═══ */}
-          {dynamicMix && (
-            <NPTMixBar data={dynamicMix} />
-          )}
 
           {/* ═══ Trudge 步履干预层：可交互 Checkbox 微任务列表 ═══ */}
           <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-2xl border border-green-200 p-5 sm:p-6">

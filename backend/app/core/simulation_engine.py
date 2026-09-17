@@ -217,7 +217,7 @@ def run_simulation(data: SimulationInput) -> SimulationResult:
         data: 模拟器输入数据
 
     Returns:
-        SimulationResult: 三个时间节点的对比结果和心理干预话术
+        SimulationResult: 三个时间节点的对比结果和合规干预话术
 
     Edge Cases:
       - 隐匿收入为 0：所有期望成本为 0

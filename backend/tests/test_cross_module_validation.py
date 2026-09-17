@@ -101,47 +101,6 @@ def _build_bank_records(data: dict):
     ]
 
 
-def _build_behavioral_data(data: dict, flow_match_score: float):
-    """从模拟数据构建心理画像输入"""
-    from app.core.profile_engine import BehavioralData
-
-    info = data["enterprise_info"]
-    transactions = data["bank_transactions"]
-    config_ref = {
-        "A": {"tax_deviation": 0.3, "risk_count": 0, "remediation": 100.0},
-        "B": {"tax_deviation": 1.4, "risk_count": 1, "remediation": 50.0},
-        "C": {"tax_deviation": 2.3, "risk_count": 3, "remediation": 10.0},
-    }
-    ref = config_ref.get(info["enterprise_type"], config_ref["A"])
-
-    # 计算私卡占比
-    total_inflow = Decimal("0")
-    private_inflow = Decimal("0")
-    for tx in transactions:
-        if tx["direction"] == "inflow":
-            total_inflow += Decimal(str(tx["amount"]))
-            if tx["account_type"] == "personal":
-                private_inflow += Decimal(str(tx["amount"]))
-    private_ratio = float(private_inflow / total_inflow) if total_inflow > 0 else 0.0
-
-    # 未申报收入占比 = 私卡占比的80%作为估算
-    undeclared_ratio = private_ratio * 0.8
-
-    return BehavioralData(
-        private_card_ratio=private_ratio,
-        tax_burden_deviation=ref["tax_deviation"],
-        historical_risk_count=ref["risk_count"],
-        risk_recurrence_rate=0.0 if ref["risk_count"] == 0 else 0.5,
-        four_flow_match_score=flow_match_score,
-        undeclared_revenue_ratio=undeclared_ratio,
-        remediation_completion_rate=ref["remediation"],
-        consecutive_high_risk_periods=0,
-        is_high_tech=info["is_high_tech"],
-        is_small_micro=info["is_small_micro"],
-        revenue_annual=info["revenue_annual"],
-    )
-
-
 # ══════════════════════════════════════════════
 #  测试用例
 # ══════════════════════════════════════════════
@@ -192,40 +151,6 @@ class TestEnterpriseA:
         assert result.counterparty_consistency_score >= 80, \
             f"企业A对手方匹配度应高，实际={result.counterparty_consistency_score:.2f}"
 
-    def test_profile_deviation_index_low(self, data_a):
-        """偏差指数 < 50"""
-        from app.core.four_flow_match import calculate_four_flow_match
-        from app.core.profile_engine import calculate_psychological_profile
-
-        flow_result = calculate_four_flow_match(
-            _build_contract_records(data_a),
-            _build_invoice_records(data_a),
-            _build_bank_records(data_a),
-        )
-        behavioral = _build_behavioral_data(data_a, flow_result.overall_score)
-        profile = calculate_psychological_profile(behavioral)
-
-        assert profile.deviation_index < 50, \
-            f"企业A偏差指数应为<50，实际={profile.deviation_index}"
-
-    def test_profile_decision_mode_rational(self, data_a):
-        """决策模式=相对理性"""
-        from app.core.four_flow_match import calculate_four_flow_match
-        from app.core.profile_engine import calculate_psychological_profile
-
-        flow_result = calculate_four_flow_match(
-            _build_contract_records(data_a),
-            _build_invoice_records(data_a),
-            _build_bank_records(data_a),
-        )
-        behavioral = _build_behavioral_data(data_a, flow_result.overall_score)
-        profile = calculate_psychological_profile(behavioral)
-
-        level = "high" if profile.deviation_index > 70 else \
-                "medium" if profile.deviation_index >= 50 else "low"
-        assert level == "low", \
-            f"企业A决策模式应为low(相对理性)，实际={level} (deviation_index={profile.deviation_index})"
-
 
 class TestEnterpriseB:
     """企业B → 中等风险"""
@@ -258,23 +183,6 @@ class TestEnterpriseB:
         )
         priv_score = result.dimension_scores.get("private_card_ratio", 0)
         assert priv_score > 0, f"企业B私卡风险分应>0，实际={priv_score}"
-
-    def test_profile_deviation_index_medium(self, data_b):
-        """偏差指数 50-70"""
-        from app.core.four_flow_match import calculate_four_flow_match
-        from app.core.profile_engine import calculate_psychological_profile
-
-        flow_result = calculate_four_flow_match(
-            _build_contract_records(data_b),
-            _build_invoice_records(data_b),
-            _build_bank_records(data_b),
-        )
-        behavioral = _build_behavioral_data(data_b, flow_result.overall_score)
-        profile = calculate_psychological_profile(behavioral)
-
-        # B企业偏差指数应在中等范围
-        assert 30 <= profile.deviation_index <= 80, \
-            f"企业B偏差指数应在中等范围，实际={profile.deviation_index}"
 
 
 class TestEnterpriseC:
@@ -333,40 +241,6 @@ class TestEnterpriseC:
         cost_score = result.dimension_scores.get("cost_deviation", 0)
         assert cost_score >= 20, \
             f"企业C成本偏离风险分应>=20（建筑行业基准92%，实际112%），实际={cost_score}"
-
-    def test_profile_deviation_index_high(self, data_c):
-        """偏差指数 > 70"""
-        from app.core.four_flow_match import calculate_four_flow_match
-        from app.core.profile_engine import calculate_psychological_profile
-
-        flow_result = calculate_four_flow_match(
-            _build_contract_records(data_c),
-            _build_invoice_records(data_c),
-            _build_bank_records(data_c),
-        )
-        behavioral = _build_behavioral_data(data_c, flow_result.overall_score)
-        profile = calculate_psychological_profile(behavioral)
-
-        assert profile.deviation_index > 50, \
-            f"企业C偏差指数应>70，实际={profile.deviation_index}"
-
-    def test_profile_decision_mode_high_risk(self, data_c):
-        """决策模式=高风险"""
-        from app.core.four_flow_match import calculate_four_flow_match
-        from app.core.profile_engine import calculate_psychological_profile
-
-        flow_result = calculate_four_flow_match(
-            _build_contract_records(data_c),
-            _build_invoice_records(data_c),
-            _build_bank_records(data_c),
-        )
-        behavioral = _build_behavioral_data(data_c, flow_result.overall_score)
-        profile = calculate_psychological_profile(behavioral)
-
-        level = "high" if profile.deviation_index > 70 else \
-                "medium" if profile.deviation_index >= 50 else "low"
-        assert level in ("high", "medium"), \
-            f"企业C决策模式应为medium/high，实际={level} (deviation_index={profile.deviation_index})"
 
 
 class TestTaxBurdenFromConfig:

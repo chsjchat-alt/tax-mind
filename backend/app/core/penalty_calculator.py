@@ -336,7 +336,7 @@ def _generate_business_narrative(result: CompoundPenaltyResult) -> str:
 
     lines = [
         "═══════════════════════════════════════",
-        "    「税智·心判」惩罚推演报告",
+        "    「蒙牛全产业链 AI 内生合规决策大脑」惩罚推演报告",
         "═══════════════════════════════════════",
         "",
         f"欠税本金合计：¥{result.total_unpaid_principal:,.2f}",

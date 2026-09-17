@@ -633,7 +633,7 @@ def main():
     invalid = [t for t in enterprise_types if t not in valid]
     if invalid:
         print(f"无效企业类型: {invalid}, 有效值: A,B,C,D,E"); sys.exit(1)
-    print(f"{'='*60}\n  税智·心判 财务数据全面生成\n  报告期间: {REPORT_MONTH_LABEL}  企业数量: {len(enterprise_types)}\n{'='*60}")
+    print(f"{'='*60}\n  蒙牛全产业链 AI 内生合规决策大脑 财务数据全面生成\n  报告期间: {REPORT_MONTH_LABEL}  企业数量: {len(enterprise_types)}\n{'='*60}")
     if not args.json_only and not args.db_only:
         export_to_json(enterprise_types, args.output)
         asyncio.run(import_to_database(enterprise_types, args.force))

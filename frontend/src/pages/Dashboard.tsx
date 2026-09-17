@@ -8,7 +8,6 @@ import {
   ThunderboltOutlined, ReloadOutlined,
 } from '@ant-design/icons';
 import { LoadingSpinner, EmptyState } from '@/components/common';
-import SSFQuadrantChart from '@/components/ssf';
 import { useDashboardData } from './dashboard/useDashboardData';
 import MetricCards from './dashboard/MetricCards';
 import ChartsSection from './dashboard/ChartsSection';
@@ -20,7 +19,6 @@ function Dashboard() {
     result, isBusy, busyText, scanRisk, loadAllData,
     handleLoadMockData, loadingMock,
     trendData, assessments, assessLoading, pendingTasks,
-    deviationIndex, deviationBaseline,
     adjustedRiskLevel, adjustedRiskScore, originalRiskScore, isLoading,
   } = useDashboardData();
 
@@ -91,14 +89,12 @@ function Dashboard() {
         <LoadingSpinner text={busyText} />
       ) : result ? (
         <>
-          {/* ═══ 4个核心指标卡片（可点击跳转） ═══ */}
+          {/* ═══ 3个核心指标卡片（可点击跳转） ═══ */}
           <MetricCards
             adjustedRiskLevel={adjustedRiskLevel}
             adjustedRiskScore={adjustedRiskScore}
             originalRiskScore={originalRiskScore}
             fourFlowMatchScore={result.four_flow_match_score}
-            deviationIndex={deviationIndex}
-            deviationBaseline={deviationBaseline}
             pendingTasks={pendingTasks}
           />
 
@@ -109,9 +105,6 @@ function Dashboard() {
             assessLoading={assessLoading}
             result={result}
           />
-
-          {/* ═══ SSF 博弈状态四象限定位 ═══ */}
-          <SSFQuadrantChart enterpriseId={enterpriseId || undefined} />
 
           {/* ═══ 最近扫描记录 ═══ */}
           <ScanHistory assessments={assessments} />

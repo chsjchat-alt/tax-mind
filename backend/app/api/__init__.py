@@ -10,7 +10,6 @@ from fastapi import APIRouter
 from app.api.enterprises import router as enterprise_router
 from app.api.data_ingestion import router as data_router
 from app.api.risk_scan import router as risk_router
-from app.api.profile import router as profile_router
 from app.api.simulation import router as simulation_router
 from app.api.compliance import router as compliance_router
 from app.api.compliance_check import router as compliance_check_router
@@ -19,7 +18,6 @@ from app.api.reports import router as reports_router
 from app.api.ai_assistant import router as ai_router
 from app.api.auth import router as auth_router
 from app.api.upload import router as upload_router
-from app.api.ssf import router as ssf_router
 from app.api.risk_config import router as risk_config_router
 
 # 聚合根路由：新增业务域时只需在此追加一行
@@ -29,14 +27,12 @@ for _router in (
     enterprise_router,
     data_router,
     risk_router,
-    profile_router,
     simulation_router,
     compliance_router,
     compliance_check_router,
     remediation_router,
     reports_router,
     upload_router,
-    ssf_router,
     risk_config_router,
     ai_router,
 ):

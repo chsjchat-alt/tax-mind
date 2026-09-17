@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useEnterpriseStore } from '@/store';
-import { remediationApi, riskScanApi, profileApi, complianceCheckApi, enterpriseApi } from '@/api';
+import { remediationApi, riskScanApi, complianceCheckApi, enterpriseApi } from '@/api';
 import { ProgressDonut, TaskCard, ImprovementFeedback } from '@/components/remediation';
 import UploadPanel from '@/components/upload';
 import { LoadingSpinner, EmptyState } from '@/components/common';
@@ -35,7 +35,7 @@ function Remediation() {
   // 改善反馈数据
   const [initialScore, setInitialScore] = useState(0);
   const [currentScore, setCurrentScore] = useState(0);
-  const [deviationTrend, setDeviationTrend] = useState<{ date: string; index: number }[]>([]);
+  const [scoreTrend, setDeviationTrend] = useState<{ date: string; index: number }[]>([]);
 
   // ── 合规校验 ──
   const [complianceResult, setComplianceResult] = useState<ComplianceCheckResult | null>(null);
@@ -92,19 +92,6 @@ function Remediation() {
           .catch((err) => { console.error('加载合规调整分失败:', err); setCurrentScore(lastRaw); });
       })
       .catch((err) => { console.error('加载历史评估列表失败:', err); });
-
-    // 心理画像偏差趋势（获取最近画像）
-    profileApi.latest(enterpriseId)
-      .then((res) => {
-        const data = res.data.data;
-        if (data?.deviation_index != null) {
-          setDeviationTrend([{
-            date: data.assessment_date || new Date().toISOString(),
-            index: data.deviation_index,
-          }]);
-        }
-      })
-      .catch((err) => { console.error('加载心理画像失败:', err); });
   }, [enterpriseId]);
 
   // ── 运行合规校验 ──
@@ -600,7 +587,7 @@ function Remediation() {
           <ImprovementFeedback
             initialScore={initialScore}
             currentScore={currentScore}
-            deviationTrend={deviationTrend}
+            scoreTrend={scoreTrend}
           />
         </div>
       )}

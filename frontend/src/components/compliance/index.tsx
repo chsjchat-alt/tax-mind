@@ -507,7 +507,7 @@ export function PlanComparisonTable({ plans }: PlanComparisonTableProps) {
 }
 
 // ═══════════════════════════════════════
-// 心理账户对比表格解析与渲染
+// 合规账户对比表格解析与渲染
 // ═══════════════════════════════════════
 interface MentalAccountData {
   header: string;
@@ -518,10 +518,10 @@ interface MentalAccountData {
 }
 
 function _parseMentalAccountTable(raw: string): MentalAccountData | null {
-  if (!raw || !raw.includes('心理账户对比') || !raw.includes('┌')) return null;
+  if (!raw || !raw.includes('合规账户对比') || !raw.includes('┌')) return null;
 
   const result: MentalAccountData = {
-    header: '心理账户对比',
+    header: '合规账户对比',
     leftTitle: '合规账户',
     rightTitle: '违规账户',
     rows: [],
@@ -690,10 +690,10 @@ export function InterventionLayerCard({
 
           {/* 内容预览 */}
           <p className={`text-xs text-gray-600 leading-relaxed ${isExpanded ? '' : 'line-clamp-2'}`}>
-            {mentalAccountData ? '对比合规路径与违规路径的长期影响，帮助企业建立正确的税务心理账户。' : content}
+            {mentalAccountData ? '对比合规路径与违规路径的长期影响，帮助企业算清合规与违规的长期账。' : content}
           </p>
 
-          {/* 展开后：理论依据 + 心理账户对比表格 */}
+          {/* 展开后：理论依据 + 合规账户对比表格 */}
           {isExpanded && (
             <div className="mt-3 pt-3 border-t border-gray-200/60 animate-fadeIn">
               <div>
@@ -703,7 +703,7 @@ export function InterventionLayerCard({
                 </p>
               </div>
 
-              {/* 第五层特殊渲染：心理账户对比表格 */}
+              {/* 第五层特殊渲染：合规账户对比表格 */}
               {mentalAccountData && (
                 <MentalAccountTable data={mentalAccountData} />
               )}
@@ -741,7 +741,7 @@ const LAYER_PURPOSE: Record<number, string> = {
   2: '揭示金税四期全自动预警流程，破除"靠关系能摆平"的控制错觉。',
   3: '以损失框架重构认知——不合规的实际代价远超合规整改成本。',
   4: '提供合理化出口，将合规从"额外成本"重新定义为"长期投资"。',
-  5: '建立合规心理账户，让企业主看到合规带来的长期竞争资产。',
+  5: '算清长期合规账，让企业主看到合规带来的长期竞争资产。',
 };
 
 // ── 图层摘要（用于流程图） ──
@@ -786,11 +786,11 @@ export function InterventionNarrativePanel({
   const isMedium = panelRiskLevel === 'medium' || panelRiskLevel === 'medium_high';
   const riskLabel = RISK_LABELS[panelRiskLevel] ?? '低风险';
 
-  // ── 主导偏差中文名 ──
+  // ── 优先维度中文名 ──
   const priorityBiasLabel = intervention.priority_bias === 'optimism_bias' ? '乐观偏差'
     : intervention.priority_bias === 'control_illusion' ? '控制错觉'
     : intervention.priority_bias === 'loss_aversion' ? '损失厌恶'
-    : intervention.priority_bias === 'defensiveness' ? '防御心理'
+    : intervention.priority_bias === 'defensiveness' ? '防御性倾向'
     : intervention.priority_bias === 'short_termism' ? '短期主义'
     : intervention.priority_bias;
 
@@ -835,7 +835,7 @@ export function InterventionNarrativePanel({
               </p>
             </div>
             <div className="bg-white rounded-xl border border-gray-200 p-4">
-              <p className="text-[11px] text-gray-400 uppercase tracking-wide mb-1">主导认知偏差</p>
+              <p className="text-[11px] text-gray-400 uppercase tracking-wide mb-1">优先维度</p>
               <div className="flex items-center gap-2">
                 <AimOutlined className="text-amber-500 text-sm" />
                 <span className="text-sm font-semibold text-gray-700">
@@ -899,7 +899,7 @@ export function InterventionNarrativePanel({
           <h3 className="text-base font-semibold text-gray-800">干预场景说明</h3>
           {intervention.priority_bias !== 'none' && (
             <span className="text-xs text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">
-              已根据主导偏差调整优先级
+              已根据优先维度调整优先级
             </span>
           )}
         </div>
@@ -907,10 +907,10 @@ export function InterventionNarrativePanel({
         <div className="bg-white rounded-2xl border border-gray-200 p-5 sm:p-6">
           {/* 场景描述 */}
           <p className="text-sm text-gray-600 leading-relaxed mb-5">
-            基于{enterpriseName}的风险画像与认知偏差分析，以下五层干预策略按优先级排序执行。
+            基于{enterpriseName}的风险评估结果，以下五层合规干预策略按优先级排序执行。
             {priorityBiasLabel !== 'none' && (
               <span className="text-amber-700 font-medium">
-                {' '}因检测到主导偏差为「{priorityBiasLabel}」，已优先推送对应的干预层内容。
+                {' '}因检测到优先维度为「{priorityBiasLabel}」，已优先推送对应的干预层内容。
               </span>
             )}
           </p>

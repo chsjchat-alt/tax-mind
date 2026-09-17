@@ -180,7 +180,7 @@ def generate_self_audit_report(
     md_lines.append(f"")
     md_lines.append(f"## 四、免责声明")
     md_lines.append(f"")
-    md_lines.append(f"本报告由税智·心判系统基于财务数据自动生成，仅供企业内部税务自查参考。")
+    md_lines.append(f"本报告由蒙牛全产业链 AI 内生合规决策大脑系统基于财务数据自动生成，仅供企业内部税务自查参考。")
     md_lines.append(f"本报告不构成正式的法律或税务意见，具体税务处理方案请咨询专业税务顾问。")
     md_lines.append(f"建议企业将本报告作为年度税务自查的依据之一存档备查。")
     md_lines.append(f"")

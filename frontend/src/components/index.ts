@@ -1,10 +1,9 @@
 // 组件导出入口
-export { RiskBadge, StatCard, LoadingSpinner, EmptyState, Disclaimer } from './common';
+export { RiskBadge, StatCard, LoadingSpinner, EmptyState } from './common';
 export {
   RiskRadar,
   RiskBarChart,
   FourFlowGauge,
-  ProfileRadarChart,
   SimulationComparisonChart,
   RiskPieChart,
   RiskTrendChart,
@@ -17,8 +16,6 @@ export { default as Sidebar } from './layout/Sidebar';
 export { default as MainLayout } from './layout/MainLayout';
 export { RiskLegend, LanguageToggle, RiskMapCard } from './riskmap';
 export type { Language } from './riskmap';
-export { BiasRadarChart, BiasCard, ProfileSummary, DisclaimerBanner, BIAS_NAMES, BIAS_DESCRIPTIONS, determineSizeTier, generateSimulatedProfile } from './profile';
-export type { SizeTier } from './profile';
 export {
   SimulationInputForm, PathComparisonChart, LossFrameMessage, CaseStudyCard,
   TrudgeChecklist,

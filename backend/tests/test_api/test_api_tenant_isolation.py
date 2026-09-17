@@ -7,7 +7,7 @@ API 层测试：租户隔离（安全加固防回归）
 
 测试场景：
   1. 同租户用户访问本租户企业 → 200
-  2. 租户A用户访问租户B企业（profile / risk-scan / remediation / upload）→ 403
+  2. 租户A用户访问租户B企业（risk-scan / remediation / upload）→ 403
   3. 通过 task_id / assessment_id 间接访问他租户企业 → 403
   4. 不存在的企业 → 403（避免跨租户探测企业存在性）
 """
@@ -140,15 +140,6 @@ class TestSameTenantAccess:
     """同租户访问应正常放行"""
 
     @pytest.mark.asyncio
-    async def test_same_tenant_profile_generate_ok(
-        self, client: AsyncClient, tenant_isolation_env
-    ):
-        env = tenant_isolation_env
-        resp = await client.post(f"/api/v1/enterprises/{env['ent_a'].id}/profile")
-        assert resp.status_code == 200
-        assert resp.json()["code"] == 200
-
-    @pytest.mark.asyncio
     async def test_same_tenant_risk_scan_ok(
         self, client: AsyncClient, tenant_isolation_env
     ):
@@ -186,9 +177,6 @@ class TestCrossTenantForbidden:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize("method,path", [
-        ("post", "/api/v1/enterprises/{eid}/profile"),
-        ("get", "/api/v1/enterprises/{eid}/profiles"),
-        ("get", "/api/v1/enterprises/{eid}/profiles/latest"),
         ("post", "/api/v1/enterprises/{eid}/risk-scan"),
         ("get", "/api/v1/enterprises/{eid}/risk-assessments"),
         ("get", "/api/v1/enterprises/{eid}/risk-assessments/latest"),
@@ -278,7 +266,7 @@ class TestCrossTenantForbidden:
         self, client: AsyncClient, tenant_isolation_env
     ):
         """不存在的企业 → 403（不泄露存在性）"""
-        resp = await client.post(f"/api/v1/enterprises/{uuid.uuid4()}/profile")
+        resp = await client.post(f"/api/v1/enterprises/{uuid.uuid4()}/risk-scan")
         assert resp.status_code == 403
 
 

@@ -2,14 +2,15 @@
  * 驾驶舱数据加载 Hook
  *
  * 封装 Dashboard 全部数据获取与派生逻辑：
- *   - 并行加载：最新风险快照 / 历史趋势 / 待办任务 / 画像偏差
+ *   - 并行加载：最新风险快照 / 历史趋势 / 待办任务
  *   - 一键加载模拟数据
  *   - 派生：趋势数据、合规调整后的风险等级与评分
+ *
+ * 一期边界（V4 §5.4）：不做心理画像，偏差指数已移除。
  */
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useEnterpriseStore, useRiskViewState } from '@/store';
-import { dataApi, riskScanApi, remediationApi, profileApi } from '@/api';
-import { DEVIATION_BASELINE } from '@/types';
+import { dataApi, riskScanApi, remediationApi } from '@/api';
 import type { RiskAssessment } from '@/types';
 
 export function useDashboardData() {
@@ -24,8 +25,6 @@ export function useDashboardData() {
   const [assessments, setAssessments] = useState<RiskAssessment[]>([]);
   const [assessLoading, setAssessLoading] = useState(false);
   const [pendingTasks, setPendingTasks] = useState(0);
-  const [deviationIndex, setDeviationIndex] = useState<number | null>(null);
-  const [deviationBaseline, setDeviationBaseline] = useState<number>(DEVIATION_BASELINE);
 
   const enterpriseId = currentEnterprise?.id;
 
@@ -33,7 +32,7 @@ export function useDashboardData() {
   const loadAllData = useCallback(async () => {
     if (!enterpriseId) return;
 
-    // 并行发起所有请求：读取最新快照 + 历史趋势 + 待办任务 + 画像数据
+    // 并行发起所有请求：读取最新快照 + 历史趋势 + 待办任务
     const promises = [
       fetchLatest(enterpriseId),
       riskScanApi.list(enterpriseId)
@@ -42,18 +41,6 @@ export function useDashboardData() {
       remediationApi.list(enterpriseId, { status: 'pending', limit: 1 })
         .then((res) => setPendingTasks(res.data.data?.total || 0))
         .catch(() => setPendingTasks(0)),
-      profileApi.latest(enterpriseId)
-        .then((res) => {
-          const data = res.data.data;
-          setDeviationIndex(data?.deviation_index ?? null);
-          if (data?.peer_average) {
-            const avg = Object.values(data.peer_average) as number[];
-            if (avg.length === 6) {
-              setDeviationBaseline(Math.round(avg.reduce((a, b) => a + b, 0) / 6));
-            }
-          }
-        })
-        .catch(() => setDeviationIndex(null)),
     ];
 
     setAssessLoading(true);
@@ -66,7 +53,6 @@ export function useDashboardData() {
     if (!enterpriseId) {
       setAssessments([]);
       setPendingTasks(0);
-      setDeviationIndex(null);
       return;
     }
     loadAllData();
@@ -128,8 +114,6 @@ export function useDashboardData() {
     assessments,
     assessLoading,
     pendingTasks,
-    deviationIndex,
-    deviationBaseline,
     adjustedRiskLevel,
     adjustedRiskScore,
     originalRiskScore,

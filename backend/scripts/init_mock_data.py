@@ -50,7 +50,7 @@ async def import_enterprises(enterprise_types: list[str], dry_run: bool = False,
     from app.data.mock_data_generator import generate_mock_data
 
     print("=" * 60)
-    print("  税智·心判 — 模拟数据初始化")
+    print("  蒙牛全产业链 AI 内生合规决策大脑 — 模拟数据初始化")
     print("=" * 60)
     print()
     print("【重要声明】")
@@ -125,7 +125,7 @@ async def import_enterprises(enterprise_types: list[str], dry_run: bool = False,
 
 def main():
     parser = argparse.ArgumentParser(
-        description="税智·心判 模拟数据初始化脚本",
+        description="蒙牛全产业链 AI 内生合规决策大脑 模拟数据初始化脚本",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 示例:

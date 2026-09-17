@@ -1,10 +1,10 @@
 """
-心理干预策略引擎单元测试
+合规干预策略引擎单元测试
 
 覆盖场景：
   - 五层干预策略全部生成
   - 优先级默认顺序
-  - 优先级根据主导偏差调整
+  - 优先级根据优先维度调整
   - 各偏差类型对应优先级验证
   - 商业语言叙述生成
   - 边界场景（空偏差、极值）
@@ -75,7 +75,7 @@ class TestPriorityAdjustment:
     """优先级调整逻辑"""
 
     def test_no_biases_default_order(self):
-        """无主导偏差 → 默认顺序1-5"""
+        """无优先维度 → 默认顺序1-5"""
         result = generate_intervention(InterventionInput(
             risk_level="low",
             deviation_index=10.0,
@@ -123,7 +123,7 @@ class TestPriorityAdjustment:
         assert result.priority_order[0] == 3
 
     def test_defensiveness_priority_fourth(self):
-        """防御心理 → 第四层优先"""
+        """防御性倾向 → 第四层优先"""
         result = generate_intervention(InterventionInput(
             risk_level="medium",
             deviation_index=50.0,
@@ -147,7 +147,7 @@ class TestPriorityAdjustment:
         assert result.priority_order[0] == 5
 
     def test_multiple_biases_priority(self):
-        """多个主导偏差 → 多个层级提前"""
+        """多个优先维度 → 多个层级提前"""
         result = generate_intervention(InterventionInput(
             risk_level="high",
             deviation_index=85.0,
@@ -222,7 +222,7 @@ class TestEdgeCases:
     """边界场景"""
 
     def test_zero_deviation_index(self):
-        """偏差指数为0"""
+        """风险偏离度为0"""
         result = generate_intervention(InterventionInput(
             risk_level="low",
             deviation_index=0.0,
@@ -235,7 +235,7 @@ class TestEdgeCases:
         assert len(result.business_narrative) > 0
 
     def test_max_deviation_index(self):
-        """偏差指数为100"""
+        """风险偏离度为100"""
         result = generate_intervention(InterventionInput(
             risk_level="high",
             deviation_index=100.0,

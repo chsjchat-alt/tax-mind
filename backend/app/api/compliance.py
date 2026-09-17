@@ -2,15 +2,13 @@
 合规导航 API
 
 GET  /api/v1/enterprises/{id}/tax-preference   税收优惠校验
-GET  /api/v1/enterprises/{id}/intervention     获取心理干预策略
-POST /api/v1/enterprises/{id}/nbt-intervention  获取NBT三层行为干预（LLM）
+GET  /api/v1/enterprises/{id}/intervention     获取整改干预策略
 """
 import logging
-import math
 from typing import Any
 from uuid import UUID
 
-from fastapi import APIRouter, Body, Depends
+from fastapi import APIRouter, Depends
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -18,25 +16,20 @@ from app.api.deps import (
     error_response,
     get_current_tenant_id,
     get_db,
-    require_auditor,
     require_viewer,
     success_response,
 )
 from app.models.enterprise import Enterprise
 from app.models.risk_assessment import RiskAssessment
-from app.models.psychological_profile import PsychologicalProfile
 from app.core.tax_preference import check_tax_preference, PreferenceCheckInput
 from app.core.intervention import generate_intervention, InterventionInput
 from app.core.compliance_adjustment import compute_compliance_adjusted_risk
-from app.core.npt_dynamic_mix import compute_npt_mix
 from app.core.trudge_toolbox import (
     generate_self_audit_report,
     simulate_installment_payment,
 )
-from app.core.profile_engine import BIAS_CN, lookup_peer_average
 from app.models.user import User
 from app.schemas.compliance import InterventionResponse, TaxPreferenceResponse
-from app.services.llm_intervention_service import llm_intervention_service
 
 LOGGER = logging.getLogger(__name__)
 
@@ -61,24 +54,6 @@ RISK_CATEGORY_NAME_MAPPING = {
     "large_personal_transfer": "大额公转私",
     "input_output_imbalance": "进销项平衡",
 }
-
-ALLOWED_RISK_KEYS = frozenset(
-    {
-        "compound_penalty",
-        "penalty",
-        "total_unpaid_principal",
-        "total_unpaid_tax",
-        "total_late_fee",
-        "total_daily_late_fee",
-        "overall_risk_score",
-        "overall_risk_level",
-        "risk_factors",
-    }
-)
-MAX_RISK_ITEMS = 20
-MAX_RISK_DEPTH = 4
-MAX_RISK_STRING_LENGTH = 200
-MAX_RISK_KEY_LENGTH = 64
 
 
 async def _get_enterprise(
@@ -108,19 +83,6 @@ async def _get_latest_risk_assessment(
     return result.scalar_one_or_none()
 
 
-async def _get_latest_profile(
-    db: AsyncSession,
-    enterprise_id: str,
-) -> PsychologicalProfile | None:
-    result = await db.execute(
-        select(PsychologicalProfile)
-        .where(PsychologicalProfile.enterprise_id == enterprise_id)
-        .order_by(PsychologicalProfile.assessment_date.desc())
-        .limit(1)
-    )
-    return result.scalar_one_or_none()
-
-
 async def _get_compliance_adjustment(
     db: AsyncSession,
     enterprise_id: str,
@@ -144,57 +106,6 @@ async def _get_compliance_adjustment(
         return None
 
 
-def _sanitize_risk_value(value: Any, *, depth: int = 0) -> Any | None:
-    if depth > MAX_RISK_DEPTH or value is None:
-        return None
-
-    if isinstance(value, bool):
-        return value
-
-    if isinstance(value, (int, float)):
-        return value if math.isfinite(float(value)) else None
-
-    if isinstance(value, str):
-        cleaned = " ".join(value.split())
-        if not cleaned:
-            return None
-        return cleaned[:MAX_RISK_STRING_LENGTH]
-
-    if isinstance(value, list):
-        sanitized_items = []
-        for item in value[:MAX_RISK_ITEMS]:
-            sanitized_item = _sanitize_risk_value(item, depth=depth + 1)
-            if sanitized_item is not None:
-                sanitized_items.append(sanitized_item)
-        return sanitized_items
-
-    if isinstance(value, dict):
-        sanitized_mapping: dict[str, Any] = {}
-        for raw_key, raw_value in list(value.items())[:MAX_RISK_ITEMS]:
-            if not isinstance(raw_key, str):
-                continue
-            key = raw_key.strip()[:MAX_RISK_KEY_LENGTH]
-            if not key:
-                continue
-            sanitized_item = _sanitize_risk_value(raw_value, depth=depth + 1)
-            if sanitized_item is not None:
-                sanitized_mapping[key] = sanitized_item
-        return sanitized_mapping
-
-    return None
-
-
-def _sanitize_client_risk_data(risk_data: dict[str, Any]) -> dict[str, Any]:
-    sanitized: dict[str, Any] = {}
-    for key in ALLOWED_RISK_KEYS:
-        if key not in risk_data:
-            continue
-        sanitized_value = _sanitize_risk_value(risk_data[key])
-        if sanitized_value is not None:
-            sanitized[key] = sanitized_value
-    return sanitized
-
-
 def _extract_positive_risk_details(risk_details: Any) -> dict[str, float]:
     if not isinstance(risk_details, dict):
         return {}
@@ -208,38 +119,6 @@ def _extract_positive_risk_details(risk_details: Any) -> dict[str, float]:
 
 def _count_findings(risk_details: Any) -> int:
     return len(_extract_positive_risk_details(risk_details))
-
-
-def _derive_dominant_biases(
-    profile: PsychologicalProfile,
-    enterprise: Enterprise,
-) -> list[str]:
-    scores: dict[str, int | float] = {
-        "control_desire": int(profile.control_desire_score or 0),
-        "loss_aversion": int(profile.loss_aversion_score or 0),
-        "optimism_bias": int(profile.optimism_bias_score or 0),
-        "control_illusion": int(profile.control_illusion_score or 0),
-        "short_termism": int(profile.short_termism_score or 0),
-        "defensiveness": int(profile.defensiveness_score or 0),
-    }
-
-    zero_count = sum(1 for value in scores.values() if value == 0)
-    if zero_count >= 3:
-        peer_avg = lookup_peer_average(
-            industry=str(enterprise.industry),
-            revenue_annual=float(enterprise.revenue_annual or 0),
-        )
-        scores = {
-            key: peer_avg.get(key, scores[key])
-            for key in scores
-        }
-
-    sorted_biases = sorted(
-        scores.items(),
-        key=lambda item: item[1],
-        reverse=True,
-    )
-    return [bias for bias, _ in sorted_biases[:2]]
 
 
 def _build_self_audit_findings(risk_details: Any) -> list[dict[str, Any]]:
@@ -319,13 +198,13 @@ async def get_intervention(
     _user: User = Depends(require_viewer),
     tenant_id: str = Depends(get_current_tenant_id),
 ):
-    """获取心理干预策略"""
+    """获取整改干预策略（基于风险等级与合规调整，不依赖心理画像）"""
     ent_id = str(enterprise_id)
     enterprise = await _get_enterprise(db, ent_id, tenant_id)
     if not enterprise:
         return error_response(40001, f"企业不存在或无权访问: {enterprise_id}")
 
-    # 获取最新风险等级和偏差指数
+    # 一期边界（V4 §5.4）：仅使用外部可观测的风险数据，不做心理画像推断
     risk_level = "low"
     deviation_index = 30.0
     dominant_biases: list[str] = []
@@ -337,11 +216,6 @@ async def get_intervention(
             if latest_risk.overall_risk_level
             else "low"
         )
-
-    latest_profile = await _get_latest_profile(db, ent_id)
-    if latest_profile:
-        deviation_index = float(latest_profile.deviation_index or 0)
-        dominant_biases = _derive_dominant_biases(latest_profile, enterprise)
 
     # 合规调整 → 干预输入改用调整后等级/分数（与展示链路联动，避免"面板显示低风险、话术说高风险"）
     compliance_adj = await _get_compliance_adjustment(
@@ -398,11 +272,7 @@ async def get_intervention(
                 ],
                 "business_narrative": intervention.business_narrative,
                 "technical_summary": intervention.technical_summary,
-                "priority_bias": (
-                    BIAS_CN.get(dominant_biases[0], dominant_biases[0])
-                    if dominant_biases
-                    else "none"
-                ),
+                "priority_bias": "none",
                 "priority_order": intervention.priority_order,
                 "compliance_risk_level": (
                     compliance_adj["adjusted_level"] if compliance_adj else None
@@ -412,104 +282,8 @@ async def get_intervention(
     )
 
 
-@router.post("/enterprises/{enterprise_id}/nbt-intervention")
-async def get_nbt_intervention(
-    enterprise_id: UUID,
-    risk_data: dict[str, Any] | None = Body(default=None),
-    db: AsyncSession = Depends(get_db),
-    _user: User = Depends(require_auditor),
-    tenant_id: str = Depends(get_current_tenant_id),
-):
-    """
-    获取 NBT 三层行为干预（Nudge-Budge-Trudge）。
-
-    调用大语言模型（DeepSeek/Qwen），基于传入的风险数据与企业画像，
-    生成三层结构化的行为干预内容。原型阶段若LLM不可用则返回Mock降级。
-    """
-    ent_id = str(enterprise_id)
-    risk_data = risk_data or {}
-
-    # 加载企业信息补充风险数据
-    enterprise = await _get_enterprise(db, ent_id, tenant_id)
-    if not enterprise:
-        return error_response(40001, f"企业不存在或无权访问: {enterprise_id}")
-
-    # 补充风险等级
-    latest_risk = await _get_latest_risk_assessment(db, ent_id)
-
-    # 合并风险数据 — 白名单 + 递归净化，限制客户端直接影响 LLM 的载荷结构
-    filtered_risk = _sanitize_client_risk_data(risk_data)
-    enriched_risk_data: dict[str, Any] = {
-        "enterprise_name": enterprise.name,
-        "industry": str(enterprise.industry),
-        "is_high_tech": enterprise.is_high_tech,
-        "is_small_micro": enterprise.is_small_micro,
-        "revenue_annual": float(enterprise.revenue_annual or 0),
-        "employee_count": enterprise.employee_count or 0,
-        "cost_rate_industry": float(enterprise.cost_rate_claimed or 0),
-        "tax_rate_industry": float(enterprise.tax_rate_claimed or 0),
-        "risk_level": latest_risk.overall_risk_level.value if latest_risk else "low",
-        "overall_risk_score": float(latest_risk.overall_risk_score) if latest_risk else 0.0,
-        **filtered_risk,
-    }
-
-    # ── P1: NPT 动态配比 ──
-    dynamic_mix_data = None
-    try:
-        base_score = float(latest_risk.overall_risk_score or 0) if latest_risk else 0.0
-        findings_count = _count_findings(latest_risk.risk_details) if latest_risk else 0
-        compliance = await _get_compliance_adjustment(
-            db,
-            ent_id,
-            base_score=base_score,
-            compliance_findings_count=findings_count if latest_risk else None,
-        )
-        if compliance:
-            if findings_count == 0 and latest_risk:
-                findings_count = max(0, int(base_score // 15))
-
-            risk_level_val = (
-                latest_risk.overall_risk_level.value
-                if latest_risk and latest_risk.overall_risk_level
-                else "low"
-            )
-            npt_mix_result = compute_npt_mix(
-                findings_count=findings_count,
-                reduction_pct=compliance["reduction_pct"],
-                is_fully_compliant=compliance["is_fully_compliant"],
-                risk_level=risk_level_val,
-                override_risk_level=compliance["adjusted_level"],
-            )
-            dynamic_mix_data = npt_mix_result.model_dump()
-            # 注入动态配比到 enrichment，让 LLM 按配比调整输出
-            enriched_risk_data["npt_mix"] = dynamic_mix_data["npt_mix"]
-            enriched_risk_data["npt_primary_strategy"] = dynamic_mix_data[
-                "primary_strategy"
-            ]
-            enriched_risk_data["npt_quadrant"] = dynamic_mix_data["quadrant_name"]
-    except Exception:
-        LOGGER.warning(
-            "NPT动态配比计算失败，使用默认配比 enterprise_id=%s",
-            ent_id[:8],
-            exc_info=True,
-        )
-
-    try:
-        nbt_response = await llm_intervention_service.generate_nbt_intervention(
-            enriched_risk_data
-        )
-    except Exception:
-        LOGGER.exception("NBT干预生成失败 enterprise_id=%s", ent_id[:8])
-        return error_response(40002, "NBT干预生成失败，请稍后重试")
-
-    result = nbt_response.model_dump()
-    if dynamic_mix_data:
-        result["dynamic_mix"] = dynamic_mix_data
-    return success_response(result)
-
-
 # ═══════════════════════════════════════════════════════════════
-# P3: Trudge 救赎工具箱
+# Trudge 救赎工具箱
 # ═══════════════════════════════════════════════════════════════
 
 

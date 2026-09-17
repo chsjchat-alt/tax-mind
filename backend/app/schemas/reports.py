@@ -9,7 +9,6 @@ from pydantic import BaseModel, Field
 class ReportGenerateRequest(BaseModel):
     """生成报告请求"""
     include_simulation: bool = Field(default=True, description="是否包含风险模拟")
-    include_profile: bool = Field(default=True, description="是否包含心理画像")
 
 
 class ReportResponse(BaseModel):
@@ -36,6 +35,5 @@ class ReportDetailResponse(BaseModel):
     generated_at: datetime
     content: dict
     risk_assessment_id: Optional[UUID]
-    profile_id: Optional[UUID]
 
     model_config = {"from_attributes": True}

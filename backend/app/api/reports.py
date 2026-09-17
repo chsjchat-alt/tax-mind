@@ -17,10 +17,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import get_db, success_response, error_response, require_viewer, require_auditor, get_current_tenant_id
 from app.models.enterprise import Enterprise
 from app.models.risk_assessment import RiskAssessment
-from app.models.psychological_profile import PsychologicalProfile
 from app.models.user import User
 from app.schemas.reports import ReportGenerateRequest
-from app.core.profile_engine import lookup_peer_average
 from app.core.compliance_adjustment import compute_compliance_adjusted_risk
 from app.core.pdf_generator import generate_report_pdf
 
@@ -52,14 +50,6 @@ async def _build_report_content(
     )
     latest_risk = risk_result.scalar_one_or_none()
 
-    # 获取最新心理画像
-    profile_result = await db.execute(
-        select(PsychologicalProfile).where(
-            PsychologicalProfile.enterprise_id == enterprise_id
-        ).order_by(PsychologicalProfile.assessment_date.desc()).limit(1)
-    )
-    latest_profile = profile_result.scalar_one_or_none()
-
     report_content = {
         "enterprise": {
             "id": str(enterprise.id),
@@ -69,7 +59,6 @@ async def _build_report_content(
             "employee_count": enterprise.employee_count,
         },
         "risk_assessment": None,
-        "profile": None,
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "disclaimer": "本报告基于模拟数据生成，仅供演示参考，不构成任何税务或法律建议。",
     }
@@ -88,30 +77,6 @@ async def _build_report_content(
                 if latest_risk.assessment_date else None,
         }
 
-    if latest_profile and request.include_profile:
-        # 计算同行基准（与 Profile 页面 API 一致）
-        peer_average = lookup_peer_average(
-            industry=str(enterprise.industry),
-            revenue_annual=float(enterprise.revenue_annual or 0),
-        )
-
-        report_content["profile"] = {
-            "id": str(latest_profile.id),
-            "deviation_index": float(latest_profile.deviation_index),
-            "control_desire": latest_profile.control_desire_score,
-            "loss_aversion": latest_profile.loss_aversion_score,
-            "optimism_bias": latest_profile.optimism_bias_score,
-            "control_illusion": latest_profile.control_illusion_score,
-            "short_termism": latest_profile.short_termism_score,
-            "defensiveness": latest_profile.defensiveness_score,
-            "dominant_biases": latest_profile.dominant_biases,
-            "peer_average": peer_average,
-            "business_narrative": latest_profile.business_narrative or "",
-            "intervention_strategy": latest_profile.intervention_strategy or {},
-            "date": latest_profile.assessment_date.isoformat()
-                if latest_profile.assessment_date else None,
-        }
-
     risk_level_value = latest_risk.overall_risk_level.value if latest_risk and latest_risk.overall_risk_level else "low"
 
     return {
@@ -123,8 +88,6 @@ async def _build_report_content(
         "content": report_content,
         "content_summary": {
             "risk_level": risk_level_value,
-            "deviation_index": float(latest_profile.deviation_index)
-                if latest_profile else 0,
         },
     }
 
@@ -216,14 +179,13 @@ async def get_report_detail(
 @router.get("/enterprises/{enterprise_id}/reports/download")
 async def download_report(
     enterprise_id: str,
-    include_profile: bool = Query(default=False),
     db: AsyncSession = Depends(get_db),
     _user: User = Depends(require_viewer),
     tenant_id: str = Depends(get_current_tenant_id),
 ):
     """下载 PDF 格式的风险评估报告"""
     try:
-        request = ReportGenerateRequest(include_profile=include_profile)
+        request = ReportGenerateRequest()
         report_data = await _build_report_content(enterprise_id, request, db, tenant_id)
         report_content = report_data.get("content", {})
 

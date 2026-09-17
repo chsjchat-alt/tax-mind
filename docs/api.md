@@ -1,4 +1,4 @@
-# 「税智·心判」API 接口文档
+# 「蒙牛全产业链 AI 内生合规决策大脑」API 接口文档
 
 > 版本：v1.0 | 基础路径：`/api/v1` | 协议：RESTful JSON over HTTPS (TLS 1.3)
 >
@@ -111,13 +111,12 @@ Authorization: Bearer <access_token>
 2. [企业管理（Enterprises）🔐 admin](#1-企业管理)
 3. [数据接入（Data Ingestion）🔐 admin](#2-数据接入)
 4. [风险引擎（Risk Engine）🔐 auditor](#3-风险引擎)
-5. [心理画像（Psychological Profile）🔐 auditor](#4-心理画像)
-6. [风险模拟（Risk Simulation）🔐 auditor](#5-风险模拟)
-7. [合规导航（Compliance）🔐 auditor](#6-合规导航)
-8. [整改追踪（Remediation）🔐 admin](#7-整改追踪)
-9. [报告生成（Reports）🔐 viewer](#8-报告生成)
-10. [AI 助手（AI Assistant）🔐 viewer](#9-ai-助手)
-11. [健康检查（公开）](#10-健康检查)
+5. [风险模拟（Risk Simulation）🔐 auditor](#4-风险模拟)
+6. [合规导航（Compliance）🔐 auditor](#5-合规导航)
+7. [整改追踪（Remediation）🔐 admin](#6-整改追踪)
+8. [报告生成（Reports）🔐 viewer](#7-报告生成)
+9. [AI 助手（AI Assistant）🔐 viewer](#8-ai-助手)
+10. [健康检查（公开）](#9-健康检查)
 
 ---
 
@@ -302,7 +301,7 @@ PUT /api/v1/enterprises/{enterprise_id}
 DELETE /api/v1/enterprises/{enterprise_id}
 ```
 
-**说明：** 级联删除该企业关联的所有流水、发票、申报、合同、评估、画像、整改任务和报告。
+**说明：** 级联删除该企业关联的所有流水、发票、申报、合同、评估、整改任务和报告。
 
 ---
 
@@ -524,69 +523,7 @@ GET /api/v1/risk-assessments/{assessment_id}
 
 ---
 
-## 4. 心理画像
-
-> **计算引擎：** `profile_engine.py`（6维度偏差评分 + 免责声明）
-
-```
-基础路径: /api/v1/enterprises/{enterprise_id}
-```
-
-### 4.1 生成心理画像
-
-```http
-POST /api/v1/enterprises/{enterprise_id}/profile
-```
-
-**说明：** 基于企业的银行流水行为模式，调用心理画像引擎生成 6 维度偏差评分和主导偏差分析。**所有结论均标注为AI辅助分析，非实际心理诊断。**
-
-**无请求体。**
-
-**响应 `data` — `ProfileResult`：**
-
-```json
-{
-  "profile_id": "uuid",
-  "enterprise_id": "uuid",
-  "assessment_date": "2025-07-14",
-  "control_desire_score": 78.5,
-  "loss_aversion_score": 62.3,
-  "optimism_bias_score": 91.2,
-  "control_illusion_score": 85.0,
-  "short_termism_score": 55.8,
-  "defensiveness_score": 42.1,
-  "deviation_index": 69.1,
-  "dominant_biases": ["optimism_bias", "control_illusion", "control_desire"],
-  "intervention_strategy": {},
-  "business_narrative": "企业主呈现高度乐观偏差（91.2分）。从现金流模式观察，存在低估税务稽查风险的倾向...",
-  "technical_summary": "dominant_biases=['optimism_bias', 'control_illusion']; deviation_index=69.1"
-}
-```
-
-| 维度 | 中文名 | 说明 |
-|------|--------|------|
-| `control_desire` | 掌控欲 | 倾向于亲自控制所有资金流向 |
-| `loss_aversion` | 损失厌恶 | 对即时损失的敏感度 |
-| `optimism_bias` | 乐观偏差 | 低估税务稽查概率的倾向 |
-| `control_illusion` | 控制错觉 | 高估自身规避风险的能力 |
-| `short_termism` | 短期主义 | 偏好短期节税而忽视长期合规成本 |
-| `defensiveness` | 防御心理 | 面对合规建议时的抗拒程度 |
-
-### 4.2 获取画像历史
-
-```http
-GET /api/v1/enterprises/{enterprise_id}/profiles
-```
-
-### 4.3 获取最新画像
-
-```http
-GET /api/v1/enterprises/{enterprise_id}/profiles/latest
-```
-
----
-
-## 5. 风险模拟
+## 4. 风险模拟
 
 > **计算引擎：** `simulation_engine.py`（3时间节点推演）+ `penalty_calculator.py`（复合罚款敞口）
 
@@ -594,7 +531,7 @@ GET /api/v1/enterprises/{enterprise_id}/profiles/latest
 基础路径: /api/v1/enterprises/{enterprise_id}
 ```
 
-### 5.1 执行风险模拟
+### 4.1 执行风险模拟
 
 ```http
 POST /api/v1/enterprises/{enterprise_id}/simulate
@@ -673,7 +610,7 @@ POST /api/v1/enterprises/{enterprise_id}/simulate
 **路径A = 税金本体 + 倍数罚金 + 个税穿透 + 复利滞纳金  
 路径B = 合规整改投入（低平直线）**
 
-### 5.2 获取同行业案例库
+### 4.2 获取同行业案例库
 
 ```http
 GET /api/v1/case-studies
@@ -683,16 +620,15 @@ GET /api/v1/case-studies
 
 ---
 
-## 6. 合规导航 🔐 auditor
+## 5. 合规导航 🔐 auditor
 
-> **计算引擎：** `tax_preference.py`（小微/高企优惠校验）、`intervention.py`（心理干预策略）  
-> **LLM 服务：** `llm_intervention_service.py`（NBT 三层行为干预）
+> **计算引擎：** `tax_preference.py`（小微/高企优惠校验）、`compliance_adjustment.py`（合规调整评分）
 
 ```
 基础路径: /api/v1/enterprises/{enterprise_id}
 ```
 
-### 6.1 税收优惠校验
+### 5.1 税收优惠校验
 
 ```http
 GET /api/v1/enterprises/{enterprise_id}/tax-preference
@@ -719,92 +655,27 @@ GET /api/v1/enterprises/{enterprise_id}/tax-preference
 }
 ```
 
-### 6.2 获取干预策略
+### 5.2 获取干预策略
 
 ```http
 GET /api/v1/enterprises/{enterprise_id}/intervention
 ```
 
-**说明：** 基于企业心理画像生成有针对性的行为干预策略。
+**说明：** 基于风险等级与合规调整结果生成分层干预策略（V4 §5.4：仅使用外部可观测的风险数据，不做心理画像推断）。
 
-### 6.3 NBT 三层行为干预（LLM）★核心
-
-```http
-POST /api/v1/enterprises/{enterprise_id}/nbt-intervention
-```
-
-**说明：** 调用大语言模型（DeepSeek/Qwen）生成结构化三层行为干预内容。若 LLM 全部不可用，自动降级至 Mock 模板。
-
-**请求体（可选）：**
-
-可传入风险数据补充信息：
-
-```json
-{
-  "enterprise_name": "创亿电子商务实业有限公司",
-  "industry": "电商",
-  "overall_risk_level": "high",
-  "overall_risk_score": 78.5,
-  "dimension_scores": {"private_card_ratio": 92}
-}
-```
-
-**响应 `data` — `NBTInterventionResult`：**
-
-```json
-{
-  "nudge": {
-    "risk_statement": "贵司作为轻资产电商企业，高频个人卡收款比率已达45%，预计引来94%的稽查概率。发票流与资金流偏离度达58分，严重触发大企业税务风险管理底稿中列明的进销项不匹配预警...",
-    "psychological_trigger": "色彩刺激——页面背景将自动转为深红色(#EF4444)，直白提醒稽查迫在眉睫",
-    "visual_recommendation": "在风险面板中使用醒目的红色卡片展示预警信息，用百分比数字直接发送高压信号"
-  },
-  "budge": {
-    "loss_comparison": "【损失框架对比】路径A（维持现状）：未来3年累计税务风险敞口达850万元（含3.5倍罚款+日万分之五滞纳金）\n\n路径B（合规整改）：当期投入仅30万元，后续税负率稳定在3.2%，稽查概率降至15%以下",
-    "rebuttal_narrative": "贵司认为'税务稽查是概率低的事件'——但本系统基于行业异质性专项统计，电商行业因个人卡收款的稽查触发率较其他行业高32%。2023年深圳某电商企业因同样行为被补税+罚款合计580万...",
-    "timeline_pressure": "根据本系统内控失效自动预警机制，贵司的成本费用率已连续3个季度高于行业75%阈值并持续攀升，预计在Q3触发税务专管员预警。建议于30日内启动整改程序"
-  },
-  "trudge": {
-    "sop_title": "电商企业税务合规整改标准作业程序（SOP）",
-    "micro_tasks": [
-      {
-        "task_id": 1,
-        "task_name": "建立公私分账体系",
-        "action": "将全部电商平台收款迁移至企业公户。对已发生的个人卡收款，补开增值税普通发票并如实申报收入。",
-        "deadline": "15个工作日",
-        "evidence_required": "银行账户变更回执 + 补申报记录"
-      }
-    ],
-    "compliance_framework": "依据国税发[2009]90号《大企业税务风险管理指引（试行）》，结合《税收征收管理法》第32条、第63条。",
-    "trust_building_closing": "合规不是打压，而是赋能。完成整改后，贵司纳税信用等级将恢复至A级，凭此将在贷款审批、政府采购、资质认定中获得实实在在的竞争优势。"
-  },
-  "metadata": {
-    "llm_provider": "deepseek",
-    "generation_time_sec": 3.2,
-    "retry_count": 0
-  }
-}
-```
-
-**安全红线：**
-- LLM 返回的 JSON 中所有金额/税率数值必须与输入数据完全一致，**禁止任何形式的四舍五入或修改**
-- System Prompt 强制要求 `response_format: {"type": "json_object"}`
-- Pydantic 严格校验返回结构，**不合规的 JSON → Mock 降级**
-
----
-
-## 7. 整改追踪 🔐 admin
+## 6. 整改追踪 🔐 admin
 
 ```
 基础路径: /api/v1/enterprises/{enterprise_id} + /api/v1/remediation-tasks
 ```
 
-### 7.1 获取整改任务列表
+### 6.1 获取整改任务列表
 
 ```http
 GET /api/v1/enterprises/{enterprise_id}/remediation-tasks
 ```
 
-### 7.2 创建整改任务
+### 6.2 创建整改任务
 
 ```http
 POST /api/v1/enterprises/{enterprise_id}/remediation-tasks
@@ -820,7 +691,7 @@ POST /api/v1/enterprises/{enterprise_id}/remediation-tasks
 | `due_date` | date | 否 | 截止日期 |
 | `risk_assessment_id` | UUID | 否 | 关联的风险评估ID |
 
-### 7.3 更新任务状态
+### 6.3 更新任务状态
 
 ```http
 PUT /api/v1/remediation-tasks/{task_id}
@@ -847,7 +718,7 @@ PUT /api/v1/remediation-tasks/{task_id}
 }
 ```
 
-### 7.4 获取任务详情
+### 6.4 获取任务详情
 
 ```http
 GET /api/v1/remediation-tasks/{task_id}
@@ -855,13 +726,13 @@ GET /api/v1/remediation-tasks/{task_id}
 
 ---
 
-## 8. 报告生成
+## 7. 报告生成
 
 ```
 基础路径: /api/v1/enterprises/{enterprise_id}/reports
 ```
 
-### 8.1 生成综合风险报告
+### 7.1 生成综合风险报告
 
 ```http
 POST /api/v1/enterprises/{enterprise_id}/reports/generate
@@ -872,7 +743,6 @@ POST /api/v1/enterprises/{enterprise_id}/reports/generate
 | 字段 | 类型 | 必填 | 说明 |
 |------|------|------|------|
 | `include_simulation` | boolean | 否 | 是否包含风险模拟结果 |
-| `include_profile` | boolean | 否 | 是否包含心理画像 |
 
 **响应 `data` — `Report`：**
 
@@ -882,23 +752,23 @@ POST /api/v1/enterprises/{enterprise_id}/reports/generate
   "title": "创亿电子商务·综合税务风险评估报告",
   "report_type": "comprehensive",
   "generated_at": "2025-07-14T11:00:00Z",
-  "content_summary": {"risk_level": "high", "deviation_index": 69.1}
+  "content_summary": {"risk_level": "high", "is_fully_compliant": false}
 }
 ```
 
-### 8.2 获取报告列表
+### 7.2 获取报告列表
 
 ```http
 GET /api/v1/enterprises/{enterprise_id}/reports
 ```
 
-### 8.3 获取报告详情
+### 7.3 获取报告详情
 
 ```http
 GET /api/v1/reports/{report_id}
 ```
 
-### 8.4 下载报告（PDF）
+### 7.4 下载报告（PDF）
 
 ```http
 GET /api/v1/reports/{report_id}/download
@@ -908,7 +778,7 @@ GET /api/v1/reports/{report_id}/download
 
 ---
 
-## 9. AI 助手 🔐 viewer
+## 8. AI 助手 🔐 viewer
 
 > **LLM 服务：** `llm_service.py`（通用对话 + 报告润色）
 
@@ -916,7 +786,7 @@ GET /api/v1/reports/{report_id}/download
 基础路径: /api/v1/ai
 ```
 
-### 9.1 智能对话
+### 8.1 智能对话
 
 ```http
 POST /api/v1/ai/chat
@@ -938,7 +808,7 @@ POST /api/v1/ai/chat
 }
 ```
 
-### 9.2 报告润色
+### 8.2 报告润色
 
 ```http
 POST /api/v1/ai/polish-report
@@ -954,7 +824,7 @@ POST /api/v1/ai/polish-report
 
 ---
 
-## 10. 健康检查（公开，无需认证）
+## 9. 健康检查（公开，无需认证）
 
 ```http
 GET /health

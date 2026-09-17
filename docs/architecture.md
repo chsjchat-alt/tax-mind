@@ -1,4 +1,4 @@
-# 「税智·心判」多维业态财税合规与内控决策支持系统 架构设计文档
+# 「蒙牛全产业链 AI 内生合规决策大脑」多维业态财税合规与内控决策支持系统 架构设计文档
 
 > 版本：v1.0 | 日期：2026-07-14 | 安全等级：等保 2.0 三级
 
@@ -12,10 +12,9 @@
 4. [前端组件树](#4-前端组件树)
 5. [数据库 E-R 图](#5-数据库-e-r-图)
 6. [API 端点表](#6-api-端点表)
-7. [NBT 行为干预管线](#7-nbt-行为干预管线)
-8. [安全架构](#8-安全架构)
-9. [技术栈](#9-技术栈)
-10. [DevSecOps 部署流水线](#10-devsecops-部署流水线)
+7. [安全架构](#7-安全架构)
+8. [技术栈](#8-技术栈)
+9. [DevSecOps 部署流水线](#9-devsecops-部署流水线)
 
 ---
 
@@ -30,7 +29,7 @@ graph TB
 
     subgraph "前端展示层"
         WEB["React 18 SPA (Vite 5)<br/>Tailwind CSS + Recharts + Zustand"]
-        PAGES["7 个页面<br/>Dashboard / RiskMap / Profile<br/>Simulator / Compliance<br/>Remediation / Reports"]
+        PAGES["6 个页面<br/>Dashboard / RiskMap / Simulator<br/>Compliance / Remediation / Reports"]
     end
 
     subgraph "后端服务层"
@@ -65,12 +64,12 @@ graph TB
 
 ## 2. 核心引擎架构
 
-系统核心由**8个纯函数/纯硬编码财税引擎**组成，所有数值运算强制使用 `decimal.Decimal`，严禁浮点数，严禁大模型参与数值推演。
+系统核心由**7个纯函数/纯硬编码财税引擎**组成，所有数值运算强制使用 `decimal.Decimal`，严禁浮点数，严禁大模型参与数值推演。
 
 ```mermaid
 graph LR
     subgraph "数据输入层"
-        E1["Enterprise<br/>企业基础画像"]
+        E1["Enterprise<br/>企业基础档案"]
         E2["BankTransaction<br/>银行流水"]
         E3["Invoice<br/>进销项发票"]
         E4["Contract<br/>合同台账"]
@@ -79,14 +78,13 @@ graph LR
         E7["IndustryBenchmark<br/>行业基准"]
     end
 
-    subgraph "V1 风险引擎集群（7引擎）"
+    subgraph "V1 风险引擎集群（6引擎）"
         F1["four_flow_match.py<br/>四流匹配度计算<br/>覆盖率 95%"]
         F2["risk_engine.py<br/>7维度风险评分<br/>覆盖率 97%"]
-        F3["profile_engine.py<br/>6维度心理画像<br/>覆盖率 97%"]
         F4["penalty_calculator.py<br/>复合罚款敞口计算<br/>覆盖率 99%"]
         F5["simulation_engine.py<br/>3时间节点推演<br/>覆盖率 96%"]
         F6["tax_preference.py<br/>税收优惠校验<br/>覆盖率 100%"]
-        F7["intervention.py<br/>心理干预策略<br/>覆盖率 99%"]
+        F7["intervention.py<br/>合规干预策略（分层）<br/>覆盖率 99%"]
     end
 
     subgraph "V2 五维引擎"
@@ -95,25 +93,20 @@ graph LR
 
     subgraph "输出层"
         O1["RiskAssessment<br/>风险评分 + 双轨叙事"]
-        O2["ProfileResult<br/>偏差画像 + 免责声明"]
         O3["PenaltyExposure<br/>罚款+个税穿透+滞纳金"]
         O4["SimulationResult<br/>双路径对比 + 案例引用"]
-        O5["NBTIntervention<br/>Nudge-Budge-Trudge"]
     end
 
     E1 & E2 & E3 & E4 & E5 & E6 & E7 --> F1
     F1 --> F2
     F2 --> F8
-    F1 & E2 --> F3
     F2 & E5 --> F4
     F2 & F4 --> F5
     E1 & E7 --> F6
-    F3 --> F7
+    F2 --> F7
     F2 --> O1
-    F3 --> O2
     F4 --> O3
     F5 --> O4
-    F2 & F3 --> O5
 ```
 
 ### 2.1 五维全景穿透评估引擎（V2）
@@ -144,33 +137,18 @@ sequenceDiagram
     %% 阶段1: 风险扫描
     U->>FE: 选择企业 → 触发风险扫描
     FE->>API: POST /api/v1/enterprises/{id}/scan
-    API->>DB: 查询企业画像 + 流水 + 发票 + 合同 + 申报 + 报表 + 行业基准
+    API->>DB: 查询企业档案 + 流水 + 发票 + 合同 + 申报 + 报表 + 行业基准
     DB-->>API: 全量明细数据
     API->>RE: 调用 four_flow_match → risk_engine → tax_risk_engine
     RE-->>API: RiskAssessment（7维 + 五维 + 双轨叙事）
     API->>DB: 持久化评估结果
     API-->>FE: {code: 200, data: RiskAssessment}
 
-    %% 阶段2: 心理画像
-    FE->>API: GET /api/v1/enterprises/{id}/profile
-    API->>DB: 查询流水行为数据
-    DB-->>API: BehavioralData
-    API->>RE: profile_engine.calculate_psychological_profile()
-    RE-->>API: ProfileResult（6维偏差 + 免责声明）
-    API-->>FE: {code: 200, data: ProfileResult}
-
-    %% 阶段3: 风险模拟
+    %% 阶段2: 风险模拟
     FE->>API: POST /api/v1/enterprises/{id}/simulate
     API->>RE: simulation_engine.run_simulation()
     RE-->>API: SimulationResult（3时间节点）
     API-->>FE: {code: 200, data: SimulationResult}
-
-    %% 阶段4: NBT干预
-    FE->>API: POST /api/v1/enterprises/{id}/nbt-intervention
-    API->>DB: 补充企业画像
-    API->>LLM: DeepSeek/Qwen（30s timeout + 3次重试）
-    LLM-->>API: JSON{ nudge, budge, trudge }
-    API-->>FE: {code: 200, data: NBTInterventionResult}
 
     %% 渲染
     FE->>U: 五维雷达 | 双轨仪表 | 指数雪球 | Trudge SOP
@@ -201,14 +179,7 @@ App.tsx (Vite 5 + React 18 + TypeScript)
 │   │   ├── DualCostGauge           #   成本费用率 vs 行业警戒阈值（SVG弧线）
 │   │   └── TaxBurdenElasticityChart #  收入增长率 vs 税负率下跌曲线
 │   ├── RiskMapCard × 7            # 7维度可展开卡片
-│   ├── NudgeLayerBanner            # Nudge高压渲染（#EF4444背景）
-│   └── BridgeLayerPanel            # 损失框架对比（高压时显示）
 │
-├── Profile.tsx                     # 心理画像仪
-│   ├── ProfileRadarChart           # 6维度偏差雷达图
-│   ├── BiasCard                    # 主导偏差卡片
-│   ├── ProfileSummary              # 画像摘要
-│   └── DisclaimerBanner            # 免责声明
 │
 ├── Simulator.tsx                   # 沉浸式风险模拟器（重构版）
 │   ├── SimulationInputForm         # 参数输入面板
@@ -237,7 +208,6 @@ App.tsx (Vite 5 + React 18 + TypeScript)
     ├── LoadingSpinner
     ├── EmptyState
     ├── RiskBadge
-    └── Disclaimer
 ```
 
 **状态管理（Zustand Store）：**
@@ -261,7 +231,6 @@ erDiagram
     Enterprise ||--o{ Contract : "signs"
     Enterprise ||--o{ FinancialStatement : "reports"
     Enterprise ||--o{ RiskAssessment : "evaluated_by"
-    Enterprise ||--o{ PsychologicalProfile : "profiled_by"
     Enterprise ||--o{ RemediationTask : "assigned_to"
     Enterprise }o--|| IndustryBenchmark : "benchmarked_against"
     Enterprise ||--o{ Report : "generated"
@@ -332,17 +301,6 @@ erDiagram
         text technical_summary
     }
 
-    PsychologicalProfile {
-        uuid id PK
-        uuid enterprise_id FK
-        date assessment_date
-        numeric deviation_index
-        array dominant_biases
-        json bias_scores
-        json intervention_strategy
-        text disclaimer
-    }
-
     RemediationTask {
         uuid id PK
         uuid enterprise_id FK
@@ -396,7 +354,6 @@ erDiagram
 |------|------|------|------|
 | `POST` | `/enterprises/{id}/scan` | 执行风险扫描（V1+V2 引擎） | ✅ |
 | `GET` | `/enterprises/{id}/risk-assessments` | 风险评估历史 | ✅ |
-| `GET` | `/enterprises/{id}/profile` | 心理画像 | ✅ |
 
 ### 风险模拟
 
@@ -411,7 +368,6 @@ erDiagram
 |------|------|------|------|
 | `GET` | `/enterprises/{id}/tax-preference` | 税收优惠校验 | ✅ |
 | `GET` | `/enterprises/{id}/intervention` | 干预策略 | ✅ |
-| `POST` | `/enterprises/{id}/nbt-intervention` | **NBT 三层行为干预（LLM）** | ✅ |
 
 ### 整改追踪
 
@@ -463,43 +419,7 @@ erDiagram
 
 ---
 
-## 7. NBT 行为干预管线
-
-```mermaid
-flowchart TB
-    INPUT["输入<br/>RiskAssessment + ProfileResult + 企业画像"]
-    RT{"LLM 健康检查"}
-    DEEPSEEK["DeepSeek API<br/>response_format: json_object<br/>30s timeout<br/>3次指数退避重试"]
-    QWEN["Qwen API<br/>OpenAI 兼容模式"]
-    MOCK["降级 Mock<br/>预置模板匹配行业"]
-    VALID{"Pydantic 严格校验<br/>NBTInterventionResponse"}
-    RETRY{"重试次数 < 3?"}
-    OUTPUT["输出<br/>{ nudge, budge, trudge }"]
-
-    INPUT --> RT
-    RT -->|"DeepSeek在线"| DEEPSEEK
-    RT -->|"Qwen在线"| QWEN
-    RT -->|"全部离线"| MOCK
-    DEEPSEEK --> VALID
-    QWEN --> VALID
-    MOCK --> VALID
-    VALID -->|"通过"| OUTPUT
-    VALID -->|"失败"| RETRY
-    RETRY -->|"是"| RT
-    RETRY -->|"否"| MOCK
-```
-
-**三层结构说明：**
-
-| 层 | 名称 | 心理学基础 | 前端渲染 |
-|----|------|-----------|---------|
-| **Nudge** | 环境助推 | 注意力引导 + 色彩心理学 | #EF4444 深红高压渲染 + 直白预警文案 |
-| **Bridge** | 信念重塑 | 前景理论（损失敏感度 ≈ 收益 ×2.5） | 三卡片面板（损失对比/破除逃避/时间压力） |
-| **Trudge** | 长效信任 | 自我效能感 + 承诺一致性 | 交互式 Checkbox 微任务列表 + 进度条 |
-
----
-
-## 8. 安全架构
+## 7. 安全架构
 
 ```mermaid
 flowchart LR
@@ -549,7 +469,7 @@ flowchart LR
 
 ---
 
-## 9. 技术栈
+## 8. 技术栈
 
 | 层级 | 技术选型 | 版本 |
 |------|---------|------|
@@ -576,7 +496,7 @@ flowchart LR
 
 ---
 
-## 10. DevSecOps 部署流水线
+## 9. DevSecOps 部署流水线
 
 ```mermaid
 flowchart LR

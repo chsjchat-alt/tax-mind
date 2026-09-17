@@ -9,7 +9,6 @@ from app.models.contract import Contract, ContractType
 from app.models.financial_statement import FinancialStatement, StatementType
 from app.models.accounting_voucher import AccountingVoucher, JournalEntry, VoucherType, EntryDirection
 from app.models.risk_assessment import RiskAssessment, AssessRiskLevel
-from app.models.psychological_profile import PsychologicalProfile
 from app.models.remediation_task import RemediationTask, TaskPriority, TaskStatus
 from app.models.risk_score_trajectory import RiskScoreTrajectory
 from app.models.risk_config import RiskConfig
@@ -40,7 +39,6 @@ __all__ = [
     "EntryDirection",
     "RiskAssessment",
     "AssessRiskLevel",
-    "PsychologicalProfile",
     "RemediationTask",
     "TaskPriority",
     "TaskStatus",

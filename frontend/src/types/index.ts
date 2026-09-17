@@ -64,6 +64,9 @@ export const RISK_COLORS: Record<RiskLevel, string> = {
   critical: '#DC2626',
 };
 
+// ── 高压渲染阈值：稽查概率超过该值触发高压渲染 ──
+export const AUDIT_PROBABILITY_CRITICAL = 0.80;
+
 export const RISK_LABELS: Record<RiskLevel, string> = {
   low: '低风险',
   medium: '中风险',
@@ -72,18 +75,7 @@ export const RISK_LABELS: Record<RiskLevel, string> = {
   critical: '严重风险',
 };
 
-// ── NBT 高压渲染阈值 ──
-export const AUDIT_PROBABILITY_CRITICAL = 0.80; // 稽查概率超过80%触发高压渲染
 
-// ── 六维偏差中文名 ──
-export const BIAS_LABELS: Record<string, string> = {
-  control_desire: '掌控欲',
-  loss_aversion: '损失厌恶',
-  optimism_bias: '乐观偏差',
-  control_illusion: '控制错觉',
-  short_termism: '短期主义',
-  defensiveness: '防御心理',
-};
 
 // ── 风险指标健康阈值 ──
 export const HEALTH_THRESHOLDS = {
@@ -93,8 +85,6 @@ export const HEALTH_THRESHOLDS = {
   risk_score: 70,
 } as const;
 
-// ── 偏差距基准线 ──
-export const DEVIATION_BASELINE = 43;
 
 // ── 风险扫描 ──
 export interface RiskScanResult {
@@ -151,33 +141,6 @@ export interface RiskAssessment {
   cost_deviation: number;
   risk_details: Record<string, unknown>;
   recommendations: Record<string, unknown>;
-}
-
-// ── 心理画像 ──
-export interface ProfileResult {
-  profile_id: string;
-  enterprise_id: string;
-  assessment_date: string;
-  control_desire_score: number;
-  loss_aversion_score: number;
-  optimism_bias_score: number;
-  control_illusion_score: number;
-  short_termism_score: number;
-  defensiveness_score: number;
-  deviation_index: number;
-  dominant_biases: string[];
-  intervention_strategy: Record<string, unknown>;
-  business_narrative: string;
-  technical_summary: string;
-  peer_average: Record<string, number>;
-}
-
-export interface ProfileSummary {
-  id: string;
-  enterprise_id: string;
-  assessment_date: string;
-  deviation_index: number;
-  dominant_biases: string[];
 }
 
 // ── 风险模拟 ──
@@ -358,19 +321,6 @@ export interface InterventionResult {
   compliance_risk_level?: RiskLevel | null;
 }
 
-// ── NBT 三层行为干预 ──
-export interface NudgeLayer {
-  risk_statement: string;
-  psychological_trigger: string;
-  visual_recommendation: string;
-}
-
-export interface BridgeLayer {
-  loss_comparison: string;
-  rebuttal_narrative: string;
-  timeline_pressure: string;
-}
-
 export interface TrudgeMicroTask {
   task_id: number;
   task_name: string;
@@ -384,26 +334,6 @@ export interface TrudgeLayer {
   micro_tasks: TrudgeMicroTask[];
   compliance_framework: string;
   trust_building_closing: string;
-}
-
-export interface NBTInterventionResult {
-  nudge: NudgeLayer;
-  budge: BridgeLayer;
-  trudge: TrudgeLayer;
-  metadata: Record<string, unknown>;
-  // ── P1: NPT 动态配比 ──
-  dynamic_mix?: NPTDynamicMix | null;
-}
-
-// ── P1: NPT 动态配比 ──
-export interface NPTDynamicMix {
-  npt_mix: { nudge: number; budge: number; trudge: number };
-  quadrant: string;
-  quadrant_name: string;
-  scheme_id: string;
-  scheme_description: string;
-  primary_strategy: 'nudge' | 'budge' | 'trudge';
-  intensity: 'light' | 'moderate' | 'strong' | 'critical';
 }
 
 // ── 内控雷达数据 ──
@@ -641,21 +571,6 @@ export interface ReportContent {
    *      risk_assessment 保持原始快照（original score+level 成对），不再交叉绑定。
    */
   compliance_adjusted_risk?: ComplianceAdjustedRisk & { veto_reason?: string | null };
-  profile: {
-    id: string;
-    deviation_index: number;
-    control_desire: number;
-    loss_aversion: number;
-    optimism_bias: number;
-    control_illusion: number;
-    short_termism: number;
-    defensiveness: number;
-    dominant_biases: string[];
-    peer_average?: Record<string, number>;
-    business_narrative?: string;
-    intervention_strategy?: Record<string, unknown>;
-    date: string | null;
-  } | null;
   generated_at: string;
   disclaimer: string;
 }
@@ -669,7 +584,6 @@ export interface Report {
   content: ReportContent;
   content_summary: {
     risk_level: string;
-    deviation_index: number;
   };
 }
 
@@ -678,60 +592,6 @@ export interface ApiResponse<T> {
   code: number;
   message: string;
   data: T;
-}
-
-// ── SSF 博弈状态分析 ──
-
-/** SSF 博弈状态 */
-export interface SSFState {
-  enterprise_id: string;
-  enterprise_name: string;
-  power_coord: number;        // 权力感知坐标 (0-100)
-  trust_coord: number;        // 信任程度坐标 (0-100)
-  quadrant: string;            // I/II/III/IV
-  quadrant_name: string;       // 合法合规/博弈对抗/放弃合规/自愿遵从
-  quadrant_subtitle: string;
-  quadrant_color: string;
-  quadrant_icon: string;
-  npt_mix: { nudge: number; budge: number; trudge: number };
-  primary_strategy: 'nudge' | 'budge' | 'trudge';
-  strategy_brief: string;
-  target_direction: string;
-  power_source: string;
-  trust_source: string;
-  adjusted_risk_score: number;
-  risk_trend: string;
-  previous_quadrant: string | null;
-  movement_description: string;
-}
-
-/** SSF 历史轨迹点 */
-export interface SSFHistoryPoint {
-  date: string;
-  power_coord: number;
-  trust_coord: number;
-  quadrant: string;
-  event: string;
-}
-
-/** SSF 完整分析结果 */
-export interface SSFResult {
-  current_state: SSFState;
-  history: SSFHistoryPoint[];
-}
-
-/** SSF 散点图企业摘要 */
-export interface SSFEnterprisePoint {
-  enterprise_id: string;
-  enterprise_name: string;
-  power_coord: number;
-  trust_coord: number;
-  quadrant: string;
-  quadrant_name: string;
-  quadrant_color: string;
-  primary_strategy: string;
-  adjusted_risk_score: number;
-  movement_description: string;
 }
 
 export interface PaginatedData<T> {

@@ -1,0 +1,36 @@
+{
+  "$comment": "乳业农产品核定扣除标准库（对应 V4 §4.2）。全国统一单耗出自财税〔2012〕38号附件2（经总局政策法规库原文核实）；『鲜奶』范围注释出自财政部 税务总局公告2026年第9号附件1；省级补丁位为占位模板，须经双人签发热更新后生效。",
+  "national_coefficients": [
+    {"product_kind": "uht", "animal": "cow", "high_protein": false, "coefficient": "1.068", "rule_id": "AGRI-DEEM-COF-001", "product_label": "灭菌乳（牛乳）"},
+    {"product_kind": "uht", "animal": "cow", "high_protein": true, "coefficient": "1.124", "rule_id": "AGRI-DEEM-COF-002", "product_label": "灭菌乳（高蛋白≥3.3%）"},
+    {"product_kind": "pasteurized", "animal": "cow", "high_protein": false, "coefficient": "1.055", "rule_id": "AGRI-DEEM-COF-003", "product_label": "巴氏杀菌乳（牛乳）"},
+    {"product_kind": "pasteurized", "animal": "cow", "high_protein": true, "coefficient": "1.196", "rule_id": "AGRI-DEEM-COF-004", "product_label": "巴氏杀菌乳（高蛋白≥3.3%）"},
+    {"product_kind": "uht", "animal": "goat", "high_protein": false, "coefficient": "1.023", "rule_id": "AGRI-DEEM-COF-005", "product_label": "灭菌乳（羊乳）"},
+    {"product_kind": "pasteurized", "animal": "goat", "high_protein": false, "coefficient": "1.062", "rule_id": "AGRI-DEEM-COF-006", "product_label": "巴氏杀菌乳（羊乳）"}
+  ],
+  "fresh_milk_scope": {
+    "$comment": "2026年第9号公告附件1《适用9%增值税税率货物范围注释》：鲜奶含各种哺乳动物乳汁及经净化、杀菌等加工的乳汁；巴氏杀菌乳、灭菌乳属该范围。用鲜奶加工的各种奶制品（酸奶、奶酪、奶油等）及调制乳不属于该范围——系统不得直接套用 9%。",
+    "in_scope": [
+      {"product_name": "巴氏杀菌乳", "aliases": ["巴氏鲜奶", "巴氏杀菌牛乳", "巴氏杀菌羊乳", "鲜牛奶"]},
+      {"product_name": "灭菌乳", "aliases": ["灭菌牛乳", "灭菌羊乳", "超高温灭菌乳", "UHT乳"]}
+    ],
+    "out_scope": [
+      {"product_name": "酸奶", "aliases": ["酸牛奶", "发酵乳", "风味发酵乳"], "reason": "鲜奶加工奶制品，不属于『鲜奶』范围"},
+      {"product_name": "调制乳", "aliases": ["调制牛奶"], "reason": "调制乳不属于『鲜奶』范围"},
+      {"product_name": "奶酪", "aliases": ["干酪", "再制干酪"], "reason": "鲜奶加工奶制品，不属于『鲜奶』范围"},
+      {"product_name": "奶油", "aliases": ["稀奶油", "黄油"], "reason": "鲜奶加工奶制品，不属于『鲜奶』范围"}
+    ]
+  },
+  "invoice_path_cases": {
+    "$comment": "非试点普通抵扣路径（2026年第10号公告第五条第（二）项，三种情形 + 合作社免税农产品）",
+    "general_vat_invoice_or_customs": {"rate": null, "basis": "①以增值税专用发票或海关进口增值税专用缴款书上注明的增值税额为进项税额", "rule_id": "VAT-INPUT-STD-001"},
+    "small_scale_3pct_special_invoice": {"rate": "0.09", "basis": "②从按照简易计税方法依照3%征收率计算缴纳增值税的小规模纳税人取得增值税专用发票的，以发票注明金额×9%计算", "rule_id": "VAT-INPUT-STD-001"},
+    "sales_or_purchase_invoice": {"rate": "0.09", "basis": "③取得（开具）农产品销售发票或收购发票的，以买价×9%计算", "rule_id": "VAT-INPUT-STD-001"},
+    "coop_exempt_product": {"rate": "0.09", "basis": "从农民专业合作社购进的免税农产品，按买价×9%计算", "rule_id": "VAT-INPUT-STD-001"}
+  },
+  "provincial_patches": {
+    "$comment": "省级单耗标准补丁位：各省公告发布节奏各异，此处为占位。任一补丁入库须双人签发（本地税务专家 + 集团税务负责人），签发前对应业务一律挂起自动计算（route_to_manual）。",
+    "pending_refresh": true,
+    "patches": []
+  }
+}

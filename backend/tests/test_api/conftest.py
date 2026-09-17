@@ -122,7 +122,7 @@ async def auth_env(db_session, monkeypatch):
     monkeypatch.setattr(app_main, "_write_audit_log", _noop_audit_log)
 
     # 清空内存 TTL 缓存（risk_scan_cache 10 分钟 / profile_cache），
-    # 避免跨用例缓存命中导致同企业第二次扫描/画像不落库。
+    # 避免跨用例缓存命中导致同企业第二次扫描/干预不落库。
     from app.core.cache import risk_scan_cache, profile_cache
     await risk_scan_cache.invalidate()
     await profile_cache.invalidate()

@@ -98,7 +98,7 @@ function Compliance() {
       <div>
         <h2 className="text-2xl font-bold text-gray-800">合规导航仪</h2>
         <p className="text-sm text-gray-500 mt-1">
-          {currentEnterprise.name} · 优惠校验 · 合规路径 · 心理干预
+          {currentEnterprise.name} · 优惠校验 · 合规路径 · 合规干预
         </p>
       </div>
 
@@ -141,12 +141,12 @@ function Compliance() {
         </div>
       </section>
 
-      {/* ═══ 第三部分：五层心理干预 ═══ */}
+      {/* ═══ 第三部分：五层合规干预 ═══ */}
       {intervention ? (
         <section>
           <div className="flex items-center gap-2 mb-4">
             <div className="w-1 h-5 rounded-full bg-purple-500" />
-            <h3 className="text-lg font-semibold text-gray-700">五层心理干预策略</h3>
+            <h3 className="text-lg font-semibold text-gray-700">五层合规干预策略</h3>
           </div>
 
           {/* 干预概览 */}
@@ -154,14 +154,14 @@ function Compliance() {
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div>
                 <p className="text-sm font-medium text-gray-700">
-                  行为干预策略 · 基于行为经济学框架
+                  合规干预策略 · 基于风险等级与合规调整
                 </p>
                 <p className="text-xs text-gray-500 mt-1">
-                  根据企业心理画像结果，按主导偏差调整干预顺序
+                  按风险等级与合规调整结果确定干预层级顺序
                 </p>
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-xs text-gray-400">主导偏差:</span>
+                <span className="text-xs text-gray-400">优先维度:</span>
                 <Tag color="blue" className="text-xs">{intervention.priority_bias !== 'none' ? intervention.priority_bias : '无'}</Tag>
               </div>
             </div>
@@ -202,10 +202,10 @@ function Compliance() {
         <section>
           <div className="flex items-center gap-2 mb-4">
             <div className="w-1 h-5 rounded-full bg-purple-500" />
-            <h3 className="text-lg font-semibold text-gray-700">五层心理干预策略</h3>
+            <h3 className="text-lg font-semibold text-gray-700">五层合规干预策略</h3>
           </div>
           <div className="bg-white rounded-xl border border-gray-200 p-8 text-center">
-            <p className="text-sm text-gray-400">暂无干预策略数据，请先生成心理画像</p>
+            <p className="text-sm text-gray-400">暂无干预策略数据，请先完成风险扫描</p>
           </div>
         </section>
       )}

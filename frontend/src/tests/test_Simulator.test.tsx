@@ -20,14 +20,10 @@ import type { Enterprise } from '@/types'
 
 // ── Mock API ──
 const mockSimulationRun = vi.fn()
-const mockNBTIntervention = vi.fn()
 
 vi.mock('@/api', () => ({
   simulationApi: {
     run: (...args: unknown[]) => mockSimulationRun(...args),
-  },
-  complianceApi: {
-    nbtIntervention: (...args: unknown[]) => mockNBTIntervention(...args),
   },
 }))
 
@@ -109,7 +105,6 @@ vi.mock('@/components/simulator', () => ({
   ThirdPartyConsequenceCard: () => null,
   PeerPressureCard: () => null,
   OfficialNoticeCard: () => null,
-  NPTMixBar: () => null,
   TrudgeToolbox: () => null,
 }))
 
@@ -215,7 +210,6 @@ beforeEach(() => {
   })
   vi.clearAllMocks()
   mockSimulationRun.mockResolvedValue(makeSimulationResult())
-  mockNBTIntervention.mockRejectedValue(new Error('no LLM'))
 })
 
 afterEach(() => {
@@ -283,7 +277,7 @@ describe('Simulator — 模拟执行', () => {
     fireEvent.click(btn)
 
     expect(
-      await screen.findByText(/正在运行风险模拟与行为干预分析/),
+      await screen.findByText(/正在运行风险模拟与合规干预分析/),
     ).toBeInTheDocument()
   })
 
@@ -348,8 +342,7 @@ describe('Simulator — Trudge 降级', () => {
     useEnterpriseStore.setState({ currentEnterprise: makeEnterprise() })
   })
 
-  it('无后端 NBT 数据 → 使用默认 5 个 SOP 微任务', async () => {
-    mockNBTIntervention.mockRejectedValue(new Error('no LLM'))
+  it('无后端干预数据 → 使用默认 5 个 SOP 微任务', async () => {
 
     renderSimulator()
     fireEvent.click(screen.getByRole('button', { name: /开始模拟/ }))

@@ -5,14 +5,11 @@ import apiClient from './client';
 import type {
   ApiResponse, Enterprise, EnterpriseSummary,
   RiskScanResult, RiskAssessment,
-  ProfileResult, ProfileSummary,
   SimulationRequest, SimulationResult,
   TaxPreferenceResult, InterventionResult,
-  NBTInterventionResult,
   BankTransaction, Invoice, TaxDeclaration, Contract,
   RemediationTask, RemediationTaskUpdateResult, RiskScoreTrajectory, Report,
   ComplianceCheckResult, UploadCheckResult,
-  SSFResult,
 } from '@/types';
 
 // ── 企业管理 ──
@@ -52,18 +49,6 @@ export const riskScanApi = {
     apiClient.get<ApiResponse<{ trajectories: RiskScoreTrajectory[]; total: number }>>(`/enterprises/${enterpriseId}/risk-score-trajectory`),
 };
 
-// ── 心理画像 ──
-export const profileApi = {
-  generate: (enterpriseId: string) =>
-    apiClient.post<ApiResponse<ProfileResult>>(`/enterprises/${enterpriseId}/profile`),
-
-  list: (enterpriseId: string) =>
-    apiClient.get<ApiResponse<{ profiles: ProfileSummary[]; total: number }>>(`/enterprises/${enterpriseId}/profiles`),
-
-  latest: (enterpriseId: string) =>
-    apiClient.get<ApiResponse<ProfileResult>>(`/enterprises/${enterpriseId}/profiles/latest`),
-};
-
 // ── 风险模拟 ──
 export const simulationApi = {
   run: (enterpriseId: string, params: SimulationRequest) =>
@@ -80,10 +65,6 @@ export const complianceApi = {
 
   intervention: (enterpriseId: string) =>
     apiClient.get<ApiResponse<InterventionResult>>(`/enterprises/${enterpriseId}/intervention`),
-
-  // NBT 三层行为干预（调用大模型生成 Nudge-Budge-Trudge 结构化内容）
-  nbtIntervention: (enterpriseId: string, riskData?: Record<string, unknown>) =>
-    apiClient.post<ApiResponse<NBTInterventionResult>>(`/enterprises/${enterpriseId}/nbt-intervention`, riskData ?? {}),
 };
 
 // ── 数据接入 ──
@@ -133,31 +114,6 @@ export const complianceCheckApi = {
     apiClient.get<ApiResponse<ComplianceCheckResult>>(`/enterprises/${enterpriseId}/compliance-check`),
 };
 
-// ── SSF 博弈分析 ──
-export const ssfApi = {
-  /** 获取单企业 SSF 博弈状态 */
-  getState: (enterpriseId: string) =>
-    apiClient.get<ApiResponse<SSFResult>>(`/ssf/enterprises/${enterpriseId}`),
-
-  /** 获取所有企业 SSF 坐标摘要 */
-  getSummary: () =>
-    apiClient.get<ApiResponse<{
-      enterprises: Array<{
-        enterprise_id: string;
-        enterprise_name: string;
-        power_coord: number;
-        trust_coord: number;
-        quadrant: string;
-        quadrant_name: string;
-        quadrant_color: string;
-        primary_strategy: string;
-        adjusted_risk_score: number;
-        movement_description: string;
-      }>;
-      quadrant_distribution: Record<string, number>;
-      total: number;
-    }>>('/ssf/summary'),
-};
 // ── P3: Trudge 救赎工具箱 ──
 export const trudgeApi = {
   /** 一键生成自查报告（Markdown） */
@@ -208,8 +164,8 @@ export const uploadApi = {
 
 // ── 报告 ──
 export const reportApi = {
-  generate: (enterpriseId: string, includeProfile?: boolean) =>
-    apiClient.post<ApiResponse<Report>>(`/enterprises/${enterpriseId}/reports/generate`, { include_profile: includeProfile ?? false }),
+  generate: (enterpriseId: string) =>
+    apiClient.post<ApiResponse<Report>>(`/enterprises/${enterpriseId}/reports/generate`),
 
   list: (enterpriseId: string) =>
     apiClient.get<ApiResponse<{ reports: Report[]; total: number }>>(`/enterprises/${enterpriseId}/reports`),
@@ -217,9 +173,8 @@ export const reportApi = {
   detail: (reportId: string) =>
     apiClient.get<ApiResponse<Report>>(`/reports/${reportId}`),
 
-  download: (enterpriseId: string, includeProfile?: boolean) =>
+  download: (enterpriseId: string) =>
     apiClient.get(`/enterprises/${enterpriseId}/reports/download`, {
-      params: { include_profile: includeProfile ?? false },
       responseType: 'blob',
     }),
 };

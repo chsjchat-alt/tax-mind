@@ -17,8 +17,8 @@ import { App as AntdApp } from 'antd'
 
 import Remediation from '@/pages/Remediation'
 import { useEnterpriseStore } from '@/store'
-import { remediationApi, riskScanApi, profileApi, enterpriseApi } from '@/api'
-import type { Enterprise, RemediationTask, RemediationTaskUpdateResult, ProfileResult } from '@/types'
+import { remediationApi, riskScanApi, enterpriseApi } from '@/api'
+import type { Enterprise, RemediationTask, RemediationTaskUpdateResult } from '@/types'
 import type { AxiosResponse, InternalAxiosRequestConfig } from 'axios'
 
 // ── Mock react-router-dom ──
@@ -40,7 +40,6 @@ vi.mock('@/api', () => ({
     update: vi.fn(),
   },
   riskScanApi: { scan: vi.fn(), list: vi.fn() },
-  profileApi: { latest: vi.fn() },
   dataApi: { loadMockData: vi.fn() },
   enterpriseApi: { list: vi.fn(), detail: vi.fn() },
 }))
@@ -96,9 +95,6 @@ function mockTasksApi(tasks: RemediationTask[]) {
     apiOk<RemediationTaskUpdateResult>({} as RemediationTaskUpdateResult),
   )
   vi.mocked(riskScanApi.list).mockResolvedValue(apiOk({ assessments: [], total: 0 }))
-  vi.mocked(profileApi.latest).mockResolvedValue(
-    apiOk({ deviation_index: 58 } as ProfileResult),
-  )
   vi.mocked(enterpriseApi.detail).mockResolvedValue(
     apiOk({ enterprise: {}, statistics: {}, compliance: null }) as unknown as Awaited<
       ReturnType<typeof enterpriseApi.detail>

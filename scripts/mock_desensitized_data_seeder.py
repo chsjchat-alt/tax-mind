@@ -976,7 +976,7 @@ def _print_summary(enterprises: list[dict]):
 # ─────────────────────────────────────────────────────────────────
 async def main(count: int, dry_run: bool = False):
     print("=" * 60)
-    print("  税智·心判 — 行业异质性动态脱敏数据播种器")
+    print("  蒙牛全产业链 AI 内生合规决策大脑 — 行业异质性动态脱敏数据播种器")
     print("=" * 60)
     print()
     print("【重要安全声明】")
@@ -1009,7 +1009,7 @@ async def main(count: int, dry_run: bool = False):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="税智·心判 行业异质性动态脱敏数据播种器",
+        description="蒙牛全产业链 AI 内生合规决策大脑 行业异质性动态脱敏数据播种器",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument("--count", type=int, default=50, help="企业数量 (默认: 50)")

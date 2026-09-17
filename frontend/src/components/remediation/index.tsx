@@ -292,11 +292,11 @@ export function TaskCard({
 interface ImprovementFeedbackProps {
   initialScore: number;
   currentScore: number;
-  deviationTrend: { date: string; index: number }[];
+  scoreTrend: { date: string; index: number }[];
 }
 
 export function ImprovementFeedback({
-  initialScore, currentScore, deviationTrend,
+  initialScore, currentScore, scoreTrend,
 }: ImprovementFeedbackProps) {
   const improved = currentScore < initialScore;
   const diff = Math.abs(initialScore - currentScore);
@@ -368,13 +368,13 @@ export function ImprovementFeedback({
         </div>
       </div>
 
-      {/* 偏差指数趋势 */}
+      {/* 风险评分变化趋势 */}
       <div className="bg-white rounded-xl border border-gray-200 p-5">
-        <h3 className="text-sm font-semibold text-gray-700 mb-4">偏差指数变化趋势</h3>
-        {deviationTrend.length > 0 ? (
+        <h3 className="text-sm font-semibold text-gray-700 mb-4">风险评分变化趋势</h3>
+        {scoreTrend.length > 0 ? (
           <div className="space-y-3">
-            {deviationTrend.map((item, i) => {
-              const prevIndex = i > 0 ? deviationTrend[i - 1].index : item.index;
+            {scoreTrend.map((item, i) => {
+              const prevIndex = i > 0 ? scoreTrend[i - 1].index : item.index;
               const changed = item.index !== prevIndex;
               const better = item.index < prevIndex;
 

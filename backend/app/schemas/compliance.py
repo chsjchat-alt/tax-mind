@@ -26,7 +26,7 @@ class InterventionLayerResponse(BaseModel):
 
 
 class InterventionResponse(BaseModel):
-    """心理干预策略"""
+    """合规干预策略"""
     layers: list[InterventionLayerResponse]
     business_narrative: str
     technical_summary: dict | None = None

@@ -1,5 +1,5 @@
 """
-「税智·心判」配置管理
+「蒙牛全产业链 AI 内生合规决策大脑」配置管理
 
 使用 pydantic-settings 从环境变量或 .env 文件加载配置。
 生产环境强制 PostgreSQL + asyncpg，原型阶段可降级 SQLite。
@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     """应用配置"""
 
     # ── 应用基本配置 ──
-    app_name: str = "税智·心判"
+    app_name: str = "蒙牛全产业链 AI 内生合规决策大脑"
     app_version: str = "0.3.0"
     debug: bool = False
 

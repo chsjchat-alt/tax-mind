@@ -1228,7 +1228,7 @@ def _generate_comprehensive_narrative(
 
     lines = [
         "═══════════════════════════════════════════════",
-        f" 「税智·心判」五维全景税务风险评估报告",
+        f" 「蒙牛全产业链 AI 内生合规决策大脑」五维全景税务风险评估报告",
         f" 企业：{payload.enterprise_name}",
         f" 行业：{payload.industry} ({'重资产' if payload.asset_type == 'heavy_asset' else '轻资产'})",
         f" 评估日期：{result.assessment_date[:10]}",

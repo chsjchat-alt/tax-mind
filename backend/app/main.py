@@ -1,5 +1,5 @@
 """
-「税智·心判」FastAPI 应用入口
+「蒙牛全产业链 AI 内生合规决策大脑」FastAPI 应用入口
 """
 import asyncio
 import json

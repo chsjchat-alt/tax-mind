@@ -75,17 +75,6 @@ export function EmptyState({ text = '暂无数据', action }: { text?: string; a
   );
 }
 
-// 免责声明
-export function Disclaimer() {
-  return (
-    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-xs text-yellow-700 mt-4">
-      <strong>免责声明：</strong>本心理画像基于行为经济学模型生成，仅用于辅助决策参考，
-      不构成任何形式的心理诊断或法律建议。所有评分均基于输入的模拟数据通过规则引擎计算得出，
-      不依赖大模型进行主观判断。
-    </div>
-  );
-}
-
 // 表格横向滚动容器：窄屏下统一横向滚动，避免表格挤压变形
 export function TableContainer({ children, className = '' }: { children: React.ReactNode; className?: string }) {
   return (

@@ -15,14 +15,11 @@ import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 
 import RiskMap from '@/pages/RiskMap'
 import { useEnterpriseStore, useRiskStore } from '@/store'
-import { complianceApi, enterpriseApi, riskScanApi, ssfApi } from '@/api'
+import { enterpriseApi, riskScanApi } from '@/api'
 import type { Enterprise, RiskScanResult } from '@/types'
 
 // ── Mock API ──
 vi.mock('@/api', () => ({
-  complianceApi: {
-    nbtIntervention: vi.fn(),
-  },
   riskScanApi: {
     scan: vi.fn().mockResolvedValue({ data: { data: null } }),
     latest: vi.fn().mockResolvedValue({ data: { data: null } }),
@@ -31,10 +28,6 @@ vi.mock('@/api', () => ({
   enterpriseApi: {
     list: vi.fn(),
     detail: vi.fn().mockResolvedValue({ data: { data: { compliance: null } } }),
-  },
-  ssfApi: {
-    getState: vi.fn(),
-    getSummary: vi.fn(),
   },
 }))
 
@@ -170,16 +163,6 @@ beforeEach(() => {
   )
   vi.mocked(riskScanApi.trajectory).mockResolvedValue(
     { data: { code: 200, message: 'success', data: { trajectories: [], total: 0 } } } as unknown as Awaited<ReturnType<typeof riskScanApi.trajectory>>,
-  )
-  vi.mocked(ssfApi.getState).mockResolvedValue(
-    { data: { code: 200, message: 'success', data: null } } as unknown as Awaited<ReturnType<typeof ssfApi.getState>>,
-  )
-  vi.mocked(ssfApi.getSummary).mockResolvedValue(
-    { data: { code: 200, message: 'success', data: null } } as unknown as Awaited<ReturnType<typeof ssfApi.getSummary>>,
-  )
-  // 默认 NBT 返回 null（避免副作用）
-  ;(complianceApi.nbtIntervention as ReturnType<typeof vi.fn>).mockRejectedValue(
-    new Error('no LLM'),
   )
 })
 
@@ -432,32 +415,6 @@ describe('RiskMap — 高压渲染（高风险）', () => {
       scanRisk: async () => {},  // 数据已就绪，阻止 useEffect 触发 re-scan
       fetchLatest: async () => {},  // 阻止 mount effect 用空数据覆盖注入的 result
     })
-    // NBT 返回高压数据
-    ;(complianceApi.nbtIntervention as ReturnType<typeof vi.fn>).mockResolvedValue({
-      data: {
-        code: 200,
-        message: 'success',
-        data: {
-          nudge: {
-            risk_statement: '你的内控体系已被94%的同规模企业超越',
-            psychological_trigger: '社会规范焦虑',
-            visual_recommendation: '红色预警',
-          },
-          budge: {
-            loss_comparison: '维持现状将损失300万',
-            rebuttal_narrative: '破除逃避心理的话术',
-            timeline_pressure: '税务稽查在即',
-          },
-          trudge: {
-            sop_title: 'SOP',
-            micro_tasks: [],
-            compliance_framework: '框架',
-            trust_building_closing: '总结',
-          },
-          metadata: {},
-        },
-      },
-    })
   })
 
   it('高风险 → 老板视角：红色 banner + 预警 + 核心风险聚焦', () => {
@@ -468,14 +425,6 @@ describe('RiskMap — 高压渲染（高风险）', () => {
     // 老板视角：核心风险聚焦 — 高危等级按类别计数（严重/高危各 1，共计 2 类）
     expect(screen.getByText(/需优先关注的2个高危等级/)).toBeInTheDocument()
     expect(screen.getByText(/7.*需关注维度/)).toBeInTheDocument()
-  })
-
-  it('高风险 → 老板视角：损失框架对比区域可见', async () => {
-    renderRiskMap()
-    await waitFor(() => {
-      expect(screen.getByText('损失框架对比分析')).toBeInTheDocument()
-    })
-    expect(screen.getByText(/维持现状将损失300万/)).toBeInTheDocument()
   })
 
   it('高风险 → 财务视角：维度统计文案 + 财务影响量化', async () => {

@@ -81,7 +81,7 @@ class ReportPDF(FPDF):
             return  # 封面不显示页眉
         self.set_font("zh", "", 8)
         self.set_text_color(150, 150, 150)
-        self.cell(0, 5, "税智·心判 — 财税合规风险评估报告", align="L")
+        self.cell(0, 5, "蒙牛全产业链 AI 内生合规决策大脑 — 财税合规风险评估报告", align="L")
         self.cell(0, 5, "内部资料 · 注意保密", align="R", new_x="LMARGIN", new_y="NEXT")
         self.line(self.l_margin, self.get_y() + 1, self.w - self.r_margin, self.get_y() + 1)
         self.ln(4)
@@ -214,7 +214,6 @@ def generate_report_pdf(report_content: dict) -> bytes:
     pdf = ReportPDF()
     ent = report_content.get("enterprise", {})
     risk = report_content.get("risk_assessment") or {}
-    profile = report_content.get("profile")
     disclaimer = report_content.get("disclaimer", "")
 
     ent_name = _s(ent.get("name"), "未知企业")
@@ -281,60 +280,17 @@ def generate_report_pdf(report_content: dict) -> bytes:
             pdf.body_text("提示：已识别出多项风险特征，建议进行深入自查并咨询注册税务师。", indent=True)
 
     # ═══════════════════════════════════════
-    # 三、心理画像
-    # ═══════════════════════════════════════
-    if profile:
-        pdf.add_page()
-        pdf.section_title("三、心理画像分析")
-        pdf.key_value("偏差指数", f"{profile.get('deviation_index', 0):.1f}")
-        if profile.get("dominant_biases"):
-            pdf.key_value("主导偏差", "、".join(profile["dominant_biases"]))
-        pdf.ln(3)
-
-        pdf.sub_title("3.1 心理偏差维度")
-        dims = [
-            ("控制欲", "control_desire"),
-            ("损失厌恶", "loss_aversion"),
-            ("乐观偏差", "optimism_bias"),
-            ("控制幻觉", "control_illusion"),
-            ("短视倾向", "short_termism"),
-            ("防御心理", "defensiveness"),
-        ]
-        for label, key in dims:
-            val = profile.get(key, 0)
-            pdf.set_font("zh", "", 9)
-            pdf.set_text_color(100, 100, 100)
-            pdf.cell(25, 7, label)
-            # 进度条
-            bar_x = pdf.get_x()
-            bar_w = 60
-            pdf.set_fill_color(235, 235, 235)
-            pdf.rect(bar_x, pdf.get_y() + 1, bar_w, 5, "F")
-            fill_w = bar_w * min(val / 100, 1) if val else 0
-            r, g, b = (220, 38, 38) if val >= 70 else (245, 158, 11) if val >= 40 else (16, 185, 129)
-            pdf.set_fill_color(r, g, b)
-            pdf.rect(bar_x, pdf.get_y() + 1, fill_w, 5, "F")
-            pdf.set_x(bar_x + bar_w + 4)
-            pdf.set_text_color(50, 50, 50)
-            pdf.cell(0, 7, f"{val}", new_x="LMARGIN", new_y="NEXT")
-
-        if profile.get("business_narrative"):
-            pdf.ln(3)
-            pdf.sub_title("3.2 经营画像解读")
-            pdf.body_text(_s(profile["business_narrative"])[:500])
-
-    # ═══════════════════════════════════════
-    # 四、免责声明
+    # 三、免责声明
     # ═══════════════════════════════════════
     pdf.add_page()
-    pdf.section_title("四、免责声明")
+    pdf.section_title("三、免责声明")
     pdf.body_text(_s(disclaimer) or "本报告基于模拟数据生成，仅供演示参考，不构成任何税务或法律建议。")
     pdf.ln(6)
     pdf.set_font("zh", "", 8)
     pdf.set_text_color(150, 150, 150)
     pdf.multi_cell(0, 5,
-        "本报告由「税智·心判」系统自动生成，数据来源于企业内部财务系统及模拟数据。\n"
-        "报告中的风险评级、心理画像分析及整改建议均为系统基于预设规则的自动分析结果，\n"
+        "本报告由「蒙牛全产业链 AI 内生合规决策大脑」系统自动生成，数据来源于企业内部财务系统及模拟数据。\n"
+        "报告中的风险评级、合规发现及整改建议均为系统基于预设规则的自动分析结果，\n"
         "不构成具有法律效力的专业意见。企业应根据实际情况咨询注册税务师或律师。\n"
         "系统运营方不对因使用本报告而产生的任何直接或间接损失承担责任。"
     )

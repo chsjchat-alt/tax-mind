@@ -181,9 +181,6 @@ class Enterprise(Base):
     risk_assessments = relationship(
         "RiskAssessment", back_populates="enterprise",
     )
-    psychological_profiles = relationship(
-        "PsychologicalProfile", back_populates="enterprise",
-    )
     remediation_tasks = relationship(
         "RemediationTask", back_populates="enterprise",
     )

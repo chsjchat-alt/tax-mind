@@ -1,9 +1,8 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useEnterpriseStore } from '@/store';
 import { reportApi } from '@/api';
-import { determineSizeTier, generateSimulatedProfile } from '@/components/profile';
 import { LoadingSpinner, EmptyState } from '@/components/common';
-import { Button, Card, Tag, Descriptions, Divider, Switch, Tooltip, App } from 'antd';
+import { Button, Card, Tag, Descriptions, Divider, Tooltip, App } from 'antd';
 import {
   FileTextOutlined, DownloadOutlined, ReloadOutlined,
   SafetyCertificateOutlined, WarningOutlined, CheckCircleOutlined,
@@ -12,7 +11,7 @@ import {
   ColumnHeightOutlined,
 } from '@ant-design/icons';
 import type { Report, ReportContent, RiskLevel } from '@/types';
-import { RISK_COLORS, RISK_LABELS, BIAS_LABELS } from '@/types';
+import { RISK_COLORS, RISK_LABELS } from '@/types';
 
 function Reports() {
   const { message } = App.useApp();
@@ -20,7 +19,6 @@ function Reports() {
   const [report, setReport] = useState<Report | null>(null);
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
-  const [includeProfile, setIncludeProfile] = useState(false);
   const [highlightedKeys, setHighlightedKeys] = useState<Set<string>>(new Set());
 
   const enterpriseId = currentEnterprise?.id;
@@ -42,52 +40,11 @@ function Reports() {
     fetchReport();
   }, [enterpriseId]);
 
-  // ── 模拟画像（与 Profile 页面一致的行业×规模回退逻辑）──
-  const simulatedProfile = useMemo(() => {
-    if (!currentEnterprise) return null;
-    const industry = currentEnterprise.industry || '批发零售';
-    const revenue = currentEnterprise.revenue_annual ?? 5_000_000;
-    const tier = determineSizeTier(revenue);
-    return generateSimulatedProfile(industry, tier, currentEnterprise.id);
-  }, [currentEnterprise]);
-
-  // ── 画像数据一致性检查：后端≥3维度为0时降级到模拟数据 ──
-  const profileScores = useMemo(() => {
-    const profile = report?.content?.profile;
-    if (!profile) return (simulatedProfile?.scores ?? {}) as Record<string, number>;
-    const backendScores: Record<string, number> = {
-      control_desire: profile.control_desire,
-      loss_aversion: profile.loss_aversion,
-      optimism_bias: profile.optimism_bias,
-      control_illusion: profile.control_illusion,
-      short_termism: profile.short_termism,
-      defensiveness: profile.defensiveness,
-    };
-    const zeroCount = Object.values(backendScores).filter((v) => v === 0).length;
-    if (zeroCount >= 3 && simulatedProfile) {
-      return simulatedProfile.scores;
-    }
-    return backendScores;
-  }, [report, simulatedProfile]);
-
-  const profilePeerAverage = useMemo(() => {
-    const profile = report?.content?.profile;
-    return profile?.peer_average ?? simulatedProfile?.peerAverage ?? {};
-  }, [report, simulatedProfile]);
-
-  // ── 从实际展示的分数推导主导偏差（与 Profile 页面一致）──
-  const dominantBiases = useMemo(() => {
-    return Object.entries(profileScores)
-      .sort(([, a], [, b]) => b - a)
-      .slice(0, 2)
-      .map(([key]) => key);
-  }, [profileScores]);
-
   const handleGenerate = async () => {
     if (!enterpriseId) return;
     setGenerating(true);
     try {
-      const res = await reportApi.generate(enterpriseId, includeProfile);
+      const res = await reportApi.generate(enterpriseId);
       setReport(res.data.data);
       message.success('报告生成成功');
     } catch {
@@ -100,7 +57,7 @@ function Reports() {
   const handleDownload = async () => {
     if (!report || !enterpriseId) return;
     try {
-      const res = await reportApi.download(enterpriseId, includeProfile);
+      const res = await reportApi.download(enterpriseId);
       const blob = res.data instanceof Blob
         ? res.data
         : new Blob([res.data], { type: 'application/pdf' });
@@ -133,10 +90,6 @@ function Reports() {
         <div className="bg-white rounded-xl border border-gray-200 p-8 text-center">
           <FileTextOutlined className="text-6xl text-gray-300 mb-4" />
           <p className="text-gray-500 mb-6">暂无报告，请生成一份风险评估报告</p>
-          <div className="flex items-center justify-center gap-3 mb-4">
-            <span className="text-sm text-gray-600">包含心理画像</span>
-            <Switch checked={includeProfile} onChange={setIncludeProfile} size="small" />
-          </div>
           <Button type="primary" icon={<ReloadOutlined />} onClick={handleGenerate} loading={generating} size="large">
             生成报告
           </Button>
@@ -147,7 +100,6 @@ function Reports() {
 
   const content: ReportContent = report.content;
   const risk = content.risk_assessment;
-  const profile = content.profile;
 
   return (
     <div className="space-y-6">
@@ -367,70 +319,6 @@ function Reports() {
       ) : (
         <Card className="rounded-xl">
           <p className="text-sm text-gray-400">未包含风险评估数据</p>
-        </Card>
-      )}
-
-      {/* 心理画像 */}
-      {profile ? (
-        <Card
-          title={
-            <div className="flex items-center gap-2">
-              <span>心理画像</span>
-              <Tag color="purple">偏差指数: {profile.deviation_index}</Tag>
-            </div>
-          }
-          className="rounded-xl"
-          size="small"
-        >
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-4">
-            {([
-              { key: 'control_desire', val: profileScores.control_desire },
-              { key: 'loss_aversion', val: profileScores.loss_aversion },
-              { key: 'optimism_bias', val: profileScores.optimism_bias },
-              { key: 'control_illusion', val: profileScores.control_illusion },
-              { key: 'short_termism', val: profileScores.short_termism },
-              { key: 'defensiveness', val: profileScores.defensiveness },
-            ] as const).map(({ key, val }) => (
-              <div key={key} className="bg-gray-50 rounded-lg p-3">
-                <p className="text-xs text-gray-500">{BIAS_LABELS[key] || key}</p>
-                <p
-                  className="text-lg font-bold"
-                  style={{ color: val >= 70 ? RISK_COLORS.high : val >= 40 ? RISK_COLORS.medium : RISK_COLORS.low }}
-                >
-                  {val ?? '-'}
-                  {profilePeerAverage[key] != null && (
-                    <span className="text-xs font-normal text-gray-400 ml-1">
-                      / {profilePeerAverage[key]}
-                    </span>
-                  )}
-                </p>
-              </div>
-            ))}
-          </div>
-
-          {dominantBiases.length > 0 && (
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-xs text-gray-500">主导偏差：</span>
-              {dominantBiases.map((b) => (
-                <Tag key={b} color="purple">{BIAS_LABELS[b] || b}</Tag>
-              ))}
-            </div>
-          )}
-
-          {profile.business_narrative && (
-            <p className="text-xs text-gray-500 leading-relaxed mt-2 border-t pt-2">
-              {profile.business_narrative.slice(0, 200)}
-              {profile.business_narrative.length > 200 && '...'}
-            </p>
-          )}
-
-          {profile.date && (
-            <p className="text-xs text-gray-400">评估日期：{profile.date.slice(0, 10)}</p>
-          )}
-        </Card>
-      ) : (
-        <Card className="rounded-xl">
-          <p className="text-sm text-gray-400">未包含心理画像数据（生成时可选择包含）</p>
         </Card>
       )}
 

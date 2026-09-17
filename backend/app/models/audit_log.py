@@ -72,6 +72,14 @@ class AuditLog(Base):
         Text, nullable=True,
         comment="响应摘要（截断至 1KB）",
     )
+    calculation_id: Mapped[str | None] = mapped_column(
+        String(64), nullable=True, index=True,
+        comment="确定性计算实例哈希（审计证据链：同一计算ID可精确重放参数与规则版本）",
+    )
+    param_snapshot: Mapped[str | None] = mapped_column(
+        Text, nullable=True,
+        comment="计算参数快照 JSON（规则ID集合 + 决策图版本 + 输入参数，永久存盘依据）",
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), index=True,
     )
