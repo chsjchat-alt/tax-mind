@@ -93,6 +93,19 @@ class RemediationTask(Base):
         comment="进度百分比（0-100）",
     )
 
+    # ── 人工验证（V4 §3.2 整改率分子「已验证整改项」的认定依据）──
+    # 完成任务 ≠ 已验证：整改证据须经 auditor/admin 人工确认并留痕后，
+    # 才计入整改率分子（合规调整引擎 compliance_adjustment）。
+    verified_by: Mapped[str | None] = mapped_column(
+        String(36), nullable=True, comment="验证确认人用户ID",
+    )
+    verified_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, comment="人工验证确认时间",
+    )
+    verify_note: Mapped[str | None] = mapped_column(
+        Text, nullable=True, comment="验证确认备注（证据留痕）",
+    )
+
     # ── 时间戳 ──
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(),

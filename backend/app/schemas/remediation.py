@@ -32,6 +32,14 @@ class RemediationTaskUpdate(BaseModel):
     feedback_notes: Optional[str] = Field(None, max_length=5000)
 
 
+class RemediationTaskVerify(BaseModel):
+    """人工验证确认（V4 §3.2：「已验证」以整改证据经人工确认并回溯留痕为准）"""
+    note: Optional[str] = Field(
+        None, max_length=2000,
+        description="验证确认备注（整改证据说明，留痕可回溯）",
+    )
+
+
 class RemediationTaskResponse(BaseModel):
     id: UUID
     enterprise_id: UUID
@@ -46,6 +54,10 @@ class RemediationTaskResponse(BaseModel):
     due_date: Optional[date]
     completed_at: Optional[datetime]
     progress: float
+    # ── 人工验证（V4 §3.2 整改率分子认定依据）──
+    verified_by: Optional[str] = None
+    verified_at: Optional[datetime] = None
+    verify_note: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 

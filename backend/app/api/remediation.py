@@ -5,6 +5,7 @@ GET    /api/v1/enterprises/{id}/remediation-tasks    获取整改任务列表
 POST   /api/v1/enterprises/{id}/remediation-tasks    创建整改任务
 PUT    /api/v1/remediation-tasks/{id}                更新整改任务状态
 GET    /api/v1/remediation-tasks/{id}                获取整改任务详情
+POST   /api/v1/remediation-tasks/{id}/verify         人工验证确认（V4 §3.2）
 """
 import logging
 from datetime import datetime, timezone
@@ -17,7 +18,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import (
     get_db, success_response, error_response,
-    require_viewer, require_auditor, get_enterprise_or_403,
+    require_viewer, require_auditor, require_admin_or_auditor,
+    get_enterprise_or_403,
 )
 from app.core.risk_engine import assess_enterprise_risk
 from app.core.four_flow_match import calculate_four_flow_match
@@ -25,7 +27,7 @@ from app.models.risk_assessment import RiskAssessment, AssessRiskLevel
 from app.models.remediation_task import RemediationTask, TaskStatus
 from app.models.user import User
 from app.schemas.remediation import (
-    RemediationTaskCreate, RemediationTaskUpdate,
+    RemediationTaskCreate, RemediationTaskUpdate, RemediationTaskVerify,
     RemediationTaskResponse,
 )
 from app.schemas.risk_scan import RiskAssessmentResponse
@@ -238,6 +240,9 @@ async def update_remediation_task(
     old_status = str(task.status) if task.status else "unknown"
     # 用户是否显式要求切换状态
     explicit_status_change = "status" in update_data
+    # 状态联动需在赋值前捕获「是否已完成」（str 混类枚举的 str() 带类名前缀，
+    # 不能与 .value 直接比较；用枚举相等判定才可靠）
+    was_completed = task.status == TaskStatus.COMPLETED
 
     for key, value in update_data.items():
         setattr(task, key, value)
@@ -271,6 +276,18 @@ async def update_remediation_task(
     )
     if trigger_re_scan and not task.completed_at:
         task.completed_at = datetime.now(timezone.utc)
+
+    # ── 验证状态联动（V4 §3.2）──
+    # 任务从「已完成」被重置为其他状态 → 原人工验证失效，清除留痕字段，
+    # 防止「未完成却仍计入整改率分子」的口径漏洞。
+    if (
+        was_completed
+        and task.status != TaskStatus.COMPLETED
+        and task.verified_at is not None
+    ):
+        task.verified_by = None
+        task.verified_at = None
+        task.verify_note = None
 
     await db.flush()
     await db.refresh(task)
@@ -310,4 +327,51 @@ async def get_remediation_task(
 
     return success_response(
         RemediationTaskResponse.model_validate(task).model_dump()
+    )
+
+
+@router.post("/remediation-tasks/{task_id}/verify")
+async def verify_remediation_task(
+    task_id: UUID,
+    payload: RemediationTaskVerify,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_admin_or_auditor),
+):
+    """人工验证确认整改任务（V4 §3.2 整改率分子认定，Q3：admin/auditor 单确认 + 备注留痕）
+
+    - 仅「已完成」任务可验证；验证后该任务权重计入整改率分子；
+    - 已验证任务再次调用 → 更新验证人与备注（纠正留痕）；
+    - 任务被重置为非完成状态时，验证自动失效（见 PUT 联动逻辑）。
+    """
+    result = await db.execute(
+        select(RemediationTask).where(RemediationTask.id == str(task_id))
+    )
+    task = result.scalar_one_or_none()
+
+    if not task:
+        return error_response(40001, f"整改任务不存在: {task_id}")
+
+    # 租户隔离校验：任务所属企业必须属于当前用户租户
+    await get_enterprise_or_403(str(task.enterprise_id), current_user, db)
+
+    if task.status != TaskStatus.COMPLETED:
+        return error_response(
+            40001, "仅已完成的整改任务可进行人工验证确认",
+        )
+
+    re_verify = task.verified_at is not None
+    task.verified_by = str(current_user.id)
+    task.verified_at = datetime.now(timezone.utc)
+    task.verify_note = (payload.note or "").strip() or None
+
+    await db.flush()
+    await db.refresh(task)
+
+    logger.info(
+        "整改任务验证确认 | task=%s | by=%s | re_verify=%s",
+        str(task_id)[:8], str(current_user.id)[:8], re_verify,
+    )
+    return success_response(
+        RemediationTaskResponse.model_validate(task).model_dump(),
+        message="验证信息已更新" if re_verify else "整改任务已验证确认",
     )

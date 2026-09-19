@@ -107,13 +107,16 @@ interface TaskCardProps {
   onEdit: (task: RemediationTask) => void;
   onStatusChange: (taskId: string, status: string) => void;
   onProgressChange: (taskId: string, progress: number) => void;
+  /** 人工验证确认（V4 §3.2 整改率分子认定；仅已完成合规任务显示入口） */
+  onVerify?: (taskId: string) => void;
 }
 
 export function TaskCard({
-  task, isUpdating, onEdit, onStatusChange, onProgressChange,
+  task, isUpdating, onEdit, onStatusChange, onProgressChange, onVerify,
 }: TaskCardProps) {
   const [expanded, setExpanded] = useState(false);
   const isCompleted = task.status === 'completed';
+  const isVerified = Boolean(task.verified_at);
 
   // 检查是否逾期
   const isOverdue =
@@ -191,6 +194,11 @@ export function TaskCard({
                 <AuditOutlined className="mr-0.5" />合规校验
               </Tag>
             )}
+            {isCompleted && task.source === 'compliance' && (
+              isVerified
+                ? <Tag color="success" className="text-[10px]">已验证</Tag>
+                : <Tag color="warning" className="text-[10px]">待验证</Tag>
+            )}
             {task.compliance_tags && task.compliance_tags.length > 0 && task.compliance_tags.map((tag) => (
               <Tag key={tag} color="geekblue" className="text-[10px]">
                 {COMPLIANCE_TAG_LABELS[tag] || tag}
@@ -225,6 +233,27 @@ export function TaskCard({
             <div className="mt-2 text-xs text-purple-700 bg-purple-50 border border-purple-200 rounded-md p-2">
               <AuditOutlined className="mr-1" />
               {task.feedback_notes}
+            </div>
+          )}
+
+          {/* 人工验证留痕（V4 §3.2：已验证整改项才计入整改率分子） */}
+          {isCompleted && task.source === 'compliance' && !isVerified && onVerify && (
+            <div className="mt-2 flex items-center gap-2 text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-md p-2">
+              <span className="flex-1">完成待人工验证——验证通过后该任务权重才计入整改率</span>
+              <Button
+                size="small"
+                type="primary"
+                ghost
+                onClick={(e) => { e.stopPropagation(); onVerify(task.id); }}
+              >
+                验证确认
+              </Button>
+            </div>
+          )}
+          {isCompleted && isVerified && (
+            <div className="mt-2 text-[11px] text-green-700 bg-green-50 border border-green-200 rounded-md p-2">
+              已于 {String(task.verified_at).slice(0, 10)} 人工验证通过
+              {task.verify_note ? `：${task.verify_note}` : ''}
             </div>
           )}
 

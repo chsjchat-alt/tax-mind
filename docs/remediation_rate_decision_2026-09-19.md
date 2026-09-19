@@ -1,9 +1,31 @@
 # 整改率统计口径：歧义梳理与可选方案（待产品决策）
 
-> 日期：2026-09-19 ｜ 状态：**待产品方确认，未实施任何代码改动**
+> 日期：2026-09-19 ｜ 状态：**✅ 已决策并实施完成（方案 B，2026-09-19）**
 > 关联：审核报告 `full_code_audit_report_2026-09-18.md` #7/#8；方案 `蒙牛AI创新_方案_迭代版V4.md` §3.2 评分定义卡
 
 ---
+
+## 〇、决策结果与实施记录（2026-09-19 追加）
+
+**产品决策：采用方案 B（严格 V4 权重比口径），问题清单按倾向建议逐项落地。**
+
+| # | 决策 | 落地结果 |
+|---|------|----------|
+| Q1 | 分母 = 合规校验生成的全部整改任务（`source="compliance"`，含未完成） | ✅ `compliance_adjustment.py` 分子分母均按此查询 |
+| Q2 | 权重 = priority 映射（high=3 / medium=2 / low=1） | ✅ `PRIORITY_WEIGHTS` 常量（代码 SSOT） |
+| Q3 | auditor/admin 单确认 + 备注留痕 | ✅ `POST /remediation-tasks/{id}/verify`（`require_admin_or_auditor`），模型 `verified_by/at/verify_note` 三字段 |
+| Q4 | 废除 80% 上限（比值口径天然 ≤100%） | ✅ 引擎不再读取 `reduction_pct_max`/`reduction_pct_per_task`（risk_config 键保留并标注废弃） |
+| Q5 | 部分整改不计（二元：完成且已验证才入分子） | ✅ 分子条件 `status=COMPLETED AND verified_at IS NOT NULL` |
+| Q6 | 历史 COMPLETED 任务默认已验证 | ✅ alembic `011_add_task_verification` 回填（verified_at=completed_at，备注留痕） |
+| Q7 | manual 任务不纳入 | ✅ 查询条件 `source="compliance"` |
+
+**实施清单**：模型 3 字段 + 迁移 011、引擎权重比公式（单条/批量同口径）、
+验证端点 + PUT 重置自动失效联动、前端验证 UI（待验证/已验证标签 + 确认按钮）、
+报告页整改率展示改为「整改率 Y%（已验证权重 X/Z）」、api.md §6.5/§9/§10/附录 D。
+**测试**：引擎断言全部改写 + 新增验证 API 测试 6 个；全量 414 passed / 8 skipped。
+
+---
+
 
 ## 一、两种口径的对照
 

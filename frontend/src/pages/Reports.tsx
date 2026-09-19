@@ -172,6 +172,12 @@ function Reports() {
             const isDQ = adj.is_disqualified ?? Boolean(adj.veto_reason);
             const delta = origScore - adjScore;
             const hasDelta = delta !== 0;
+            // 方案 B 权重比口径：整改率 = 已验证权重 ÷ 可整改权重（旧载荷无权重字段时退化为完成数文案）
+            const ratePct = Math.round((adj.reduction_pct ?? 0) * 100);
+            const hasWeight = adj.remediated_weight != null && adj.total_weight != null;
+            const rateText = hasWeight
+              ? `整改率 ${ratePct}%（已验证权重 ${adj.remediated_weight}/${adj.total_weight}）`
+              : `已完成 ${adj.completion_count} 项合规整改`;
             return (
               <Card
                 title="整改前后风险对比"
@@ -182,9 +188,7 @@ function Reports() {
                     ? <Tag color="red">最终状态：DISQUALIFIED（不合格）</Tag>
                     : adj.is_fully_compliant
                       ? <Tag color="green">完全合规</Tag>
-                      : <Tag color="blue">
-                          已完成 {adj.completion_count} 项合规整改
-                        </Tag>
+                      : <Tag color="blue">{rateText}</Tag>
                 }
               >
                 {adj.veto_reason && (

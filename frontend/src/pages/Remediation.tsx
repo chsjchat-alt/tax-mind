@@ -364,6 +364,29 @@ function Remediation() {
     }
   };
 
+  // ── 人工验证确认（V4 §3.2：已验证整改项权重才计入整改率分子）──
+  const handleVerify = async (taskId: string) => {
+    setUpdatingTaskIds((prev) => new Set(prev).add(taskId));
+    try {
+      const res = await remediationApi.verify(taskId);
+      const updated = res.data?.data as RemediationTask | undefined;
+      if (updated) {
+        setTasks((prev) => prev.map((t) => (t.id === taskId ? { ...t, ...updated } : t)));
+      }
+      message.success('验证确认完成，该任务权重已计入整改率');
+      fetchTasks();
+      fetchFeedback();
+    } catch {
+      message.error('验证确认失败（需要管理员或审计员权限）');
+    } finally {
+      setUpdatingTaskIds((prev) => {
+        const next = new Set(prev);
+        next.delete(taskId);
+        return next;
+      });
+    }
+  };
+
   const handleProgressChange = async (taskId: string, progress: number) => {
     // ── 乐观更新 + 智能状态联动 ──
     const prevTasks = tasks;
@@ -572,6 +595,7 @@ function Remediation() {
                 onEdit={openEditModal}
                 onStatusChange={handleStatusChange}
                 onProgressChange={handleProgressChange}
+                onVerify={handleVerify}
               />
             ))}
           </div>

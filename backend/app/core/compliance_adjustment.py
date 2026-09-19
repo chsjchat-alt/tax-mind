@@ -1,27 +1,47 @@
 """
 合规整改联动——跨模块统一的合规调整风险评分
 
-核心原则：
-  1. 完成合规整改任务 → 风险评分降低（幅度与完成任务数成比例）
+核心原则（V4 §3.2 评分定义卡，方案 B 权重比口径）：
+  1. 整改率 = 已验证整改项权重 ÷ 可整改项权重
+     - 可整改项：合规校验自动生成的全部整改任务（source="compliance"，含未完成）；
+       手动任务（manual）不纳入分子分母
+     - 已验证：任务 status=COMPLETED 且经人工确认（verified_at 非空，留痕可回溯）
+     - 权重：任务优先级映射 high=3 / medium=2 / low=1（SSOT，见 PRIORITY_WEIGHTS）
+     - 分母为 0（无可整改项）→ 整改率 = 0
+     - 调整后分 = 原始分 × (1 − 整改率)，比值天然 ≤ 100%，不设上限（Q4）
   2. 合规校验无发现（完全合规）→ 所有风险评级强制为 LOW
-  3. 撤销合规任务 → 风险评分恢复
+  3. 一票否决（纳税信用 D 级 / 涉税犯罪）→ 修复加分不计，最终状态 DISQUALIFIED
+  4. 撤销合规任务 → 风险评分恢复
 
 所有需要展示风险等级/评分的模块（驾驶舱、风险地图、
 合规导航、整改追踪、报告中心）应通过本模块获取合规调整后的统一评分。
 """
 import logging
-from decimal import Decimal
 from typing import Any
 
-from sqlalchemy import select, func
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.remediation_task import RemediationTask, TaskStatus
+from app.models.remediation_task import RemediationTask, TaskStatus, TaskPriority
 from app.models.risk_assessment import RiskAssessment, AssessRiskLevel
 from app.models.enterprise import Enterprise
 from app.core.credit_veto import resolve_tax_credit_veto
 
 _logger = logging.getLogger(__name__)
+
+# ── 整改项权重映射（V4 §3.2 方案 B：priority → 权重；本模块为唯一口径 SSOT）──
+PRIORITY_WEIGHTS: dict[str, float] = {
+    TaskPriority.HIGH.value: 3.0,
+    TaskPriority.MEDIUM.value: 2.0,
+    TaskPriority.LOW.value: 1.0,
+}
+_DEFAULT_WEIGHT = PRIORITY_WEIGHTS[TaskPriority.MEDIUM.value]
+
+
+def _task_weight(task: RemediationTask) -> float:
+    """单个整改任务的权重（priority 枚举/字符串均兼容，未知值回退中档）。"""
+    raw = task.priority.value if isinstance(task.priority, TaskPriority) else str(task.priority or "")
+    return PRIORITY_WEIGHTS.get(raw, _DEFAULT_WEIGHT)
 
 
 def _count_findings(risk_details: Any) -> int:
@@ -113,13 +133,16 @@ async def compute_compliance_adjusted_risk(
         {
             "original_score": float,      # 原始风险评分 (0-100)
             "original_level": str,        # 原始风险等级 (frontend RiskLevel)
-            "adjusted_score": float,      # 调整后评分 (0-100)
+            "adjusted_score": float,      # 调整后评分 = 原始分 × (1 − 整改率)
             "adjusted_level": str,        # 调整后等级 (frontend RiskLevel)
             "final_status": str,          # 最终状态：DISQUALIFIED 或五档等级映射结果（V4 §3.2）
             "is_disqualified": bool,      # 是否触发一票否决（直接判 DISQUALIFIED，不参与等级映射）
-            "completion_count": int,      # 已完成合规任务数
+            "completion_count": int,      # 已完成合规任务数（含未验证）
+            "verified_count": int,        # 已验证合规任务数（整改率分子计数）
+            "remediated_weight": float,   # 已验证整改项权重和（整改率分子）
+            "total_weight": float,        # 可整改项权重和（整改率分母）
             "is_fully_compliant": bool,   # 是否完全合规
-            "reduction_pct": float,        # 风险降低百分比
+            "reduction_pct": float,       # 整改率 = remediated_weight ÷ total_weight（分母 0 时为 0）
             "veto_reason": str | None,    # 一票否决原因（触发时返回，修复加分不计）
         }
     """
@@ -136,11 +159,9 @@ async def compute_compliance_adjusted_risk(
         if enterprise is not None else None
     )
 
-    # 0.5 修复加分参数（B1 配置化：每任务降幅 / 降幅上限 / 五级阈值）
+    # 0.5 五级阈值（B1 配置化；整改率口径为代码 SSOT，见模块 docstring）
     from app.core.risk_config import get_risk_config
     _config = await get_risk_config(db)
-    pct_per_task = _config.get("reduction_pct_per_task", 0.15)
-    pct_max = _config.get("reduction_pct_max", 0.80)
     thresholds = _load_thresholds(_config)
 
     # 0.6 兜底取数：未传 base_score / findings 时自动查最新评估，保证
@@ -159,16 +180,22 @@ async def compute_compliance_adjusted_risk(
         if compliance_findings_count is None and latest_ra is not None:
             compliance_findings_count = _count_findings(latest_ra.risk_details)
 
-    # 1. 查询已完成的合规整改任务
-    completed_result = await db.execute(
+    # 1. 查询全部合规整改任务（可整改项分母；含未完成与未验证）
+    tasks_result = await db.execute(
         select(RemediationTask).where(
             RemediationTask.enterprise_id == enterprise_id,
-            RemediationTask.status == TaskStatus.COMPLETED,
             RemediationTask.source == "compliance",
         )
     )
-    completed_tasks = completed_result.scalars().all()
-    completion_count = len(completed_tasks)
+    compliance_tasks = list(tasks_result.scalars().all())
+    completion_count = sum(
+        1 for t in compliance_tasks if t.status == TaskStatus.COMPLETED
+    )
+    verified_tasks = [
+        t for t in compliance_tasks
+        if t.status == TaskStatus.COMPLETED and t.verified_at is not None
+    ]
+    verified_count = len(verified_tasks)
 
     # 2. 完全合规判断：无合规发现 = 完全合规
     is_fully_compliant = (
@@ -176,12 +203,10 @@ async def compute_compliance_adjusted_risk(
         and compliance_findings_count == 0
     )
 
-    # 3. 计算风险降低幅度
-    # 每个完成的合规任务降低 pct_per_task 风险（最多降低 pct_max）
-    if completion_count == 0:
-        reduction_pct = 0.0
-    else:
-        reduction_pct = min(pct_max, completion_count * pct_per_task)
+    # 3. 整改率（V4 §3.2 方案 B）= 已验证整改项权重 ÷ 可整改项权重
+    total_weight = sum(_task_weight(t) for t in compliance_tasks)
+    remediated_weight = sum(_task_weight(t) for t in verified_tasks)
+    reduction_pct = (remediated_weight / total_weight) if total_weight > 0 else 0.0
 
     # 4. 计算调整后评分
     raw_score = base_score if base_score is not None else 100.0
@@ -214,8 +239,9 @@ async def compute_compliance_adjusted_risk(
     final_status = "DISQUALIFIED" if is_disqualified else adjusted_level
 
     _logger.info(
-        "合规调整 | enterprise=%s | base=%.1f | completed=%d | reduction=%.0f%% | adjusted=%.1f (%s) | fully_compliant=%s | veto=%s",
-        enterprise_id[:8], raw_score, completion_count,
+        "合规调整 | enterprise=%s | base=%.1f | verified=%d/%d | weight=%.1f/%.1f | rate=%.0f%% | adjusted=%.1f (%s) | fully_compliant=%s | veto=%s",
+        enterprise_id[:8], raw_score, verified_count, completion_count,
+        remediated_weight, total_weight,
         reduction_pct * 100, adjusted_score, adjusted_level, is_fully_compliant,
         bool(veto_reason),
     )
@@ -228,6 +254,9 @@ async def compute_compliance_adjusted_risk(
         "final_status": final_status,
         "is_disqualified": is_disqualified,
         "completion_count": completion_count,
+        "verified_count": verified_count,
+        "remediated_weight": round(remediated_weight, 2),
+        "total_weight": round(total_weight, 2),
         "is_fully_compliant": is_fully_compliant,
         "reduction_pct": round(reduction_pct, 4),
         "veto_reason": veto_reason,
@@ -248,8 +277,9 @@ async def compute_compliance_adjusted_risks(
     Returns:
         {enterprise_id: {"original_score", "original_level", "adjusted_score",
                          "adjusted_level", "final_status", "is_disqualified",
-                         "completion_count", "is_fully_compliant",
-                         "reduction_pct", "veto_reason"}}
+                         "completion_count", "verified_count",
+                         "remediated_weight", "total_weight",
+                         "is_fully_compliant", "reduction_pct", "veto_reason"}}
     """
     if not enterprise_ids:
         return {}
@@ -264,39 +294,50 @@ async def compute_compliance_adjusted_risks(
             ent.tax_credit_level, ent.tax_crime_convicted,
         )
 
-    # 0.5 修复加分参数（B1 配置化：每任务降幅 / 降幅上限 / 五级阈值）
+    # 0.5 五级阈值（B1 配置化；整改率口径为代码 SSOT，见模块 docstring）
     from app.core.risk_config import get_risk_config
     _config = await get_risk_config(db)
-    pct_per_task = _config.get("reduction_pct_per_task", 0.15)
-    pct_max = _config.get("reduction_pct_max", 0.80)
     thresholds = _load_thresholds(_config)
 
-    # 一次聚合查询所有企业的已完成合规任务数
+    # 一次查询所有企业的全部合规整改任务（可整改项；含未完成与未验证），
+    # Python 侧按企业聚合权重（分子=已完成且已验证，分母=全部合规任务）
     result = await db.execute(
-        select(
-            RemediationTask.enterprise_id,
-            func.count().label("completed_count"),
-        ).where(
+        select(RemediationTask).where(
             RemediationTask.enterprise_id.in_(enterprise_ids),
-            RemediationTask.status == TaskStatus.COMPLETED,
             RemediationTask.source == "compliance",
-        ).group_by(RemediationTask.enterprise_id)
+        )
     )
-    counts = {eid: cnt for eid, cnt in result.all()}
+    agg: dict[str, dict[str, float]] = {
+        eid: {"completed": 0, "verified": 0, "remediated": 0.0, "total": 0.0}
+        for eid in enterprise_ids
+    }
+    for task in result.scalars().all():
+        bucket = agg.get(task.enterprise_id)
+        if bucket is None:
+            continue
+        w = _task_weight(task)
+        bucket["total"] += w
+        if task.status == TaskStatus.COMPLETED:
+            bucket["completed"] += 1
+            if task.verified_at is not None:
+                bucket["verified"] += 1
+                bucket["remediated"] += w
 
     adjusted: dict[str, dict] = {}
     for eid in enterprise_ids:
-        completion_count = counts.get(eid, 0)
+        bucket = agg[eid]
+        completion_count = int(bucket["completed"])
+        verified_count = int(bucket["verified"])
+        remediated_weight = bucket["remediated"]
+        total_weight = bucket["total"]
         veto_reason = veto_map.get(eid)
         is_fully_compliant = bool(
             compliance_findings_counts
             and compliance_findings_counts.get(eid) == 0
         )
 
-        if completion_count == 0:
-            reduction_pct = 0.0
-        else:
-            reduction_pct = min(pct_max, completion_count * pct_per_task)
+        # 整改率（V4 §3.2 方案 B）= 已验证权重 ÷ 可整改权重（分母 0 → 0）
+        reduction_pct = (remediated_weight / total_weight) if total_weight > 0 else 0.0
 
         raw_score = (base_scores or {}).get(eid, 100.0)
         if veto_reason:
@@ -328,6 +369,9 @@ async def compute_compliance_adjusted_risks(
             "final_status": "DISQUALIFIED" if is_disqualified else adjusted_level,
             "is_disqualified": is_disqualified,
             "completion_count": completion_count,
+            "verified_count": verified_count,
+            "remediated_weight": round(remediated_weight, 2),
+            "total_weight": round(total_weight, 2),
             "is_fully_compliant": is_fully_compliant,
             "reduction_pct": round(reduction_pct, 4),
             "veto_reason": veto_reason,

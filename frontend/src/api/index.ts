@@ -106,6 +106,10 @@ export const remediationApi = {
 
   detail: (taskId: string) =>
     apiClient.get<ApiResponse<RemediationTask>>(`/remediation-tasks/${taskId}`),
+
+  /** 人工验证确认（V4 §3.2 整改率分子认定；admin/auditor，备注留痕） */
+  verify: (taskId: string, note?: string) =>
+    apiClient.post<ApiResponse<RemediationTask>>(`/remediation-tasks/${taskId}/verify`, { note }),
 };
 
 // ── 合规校验 ──

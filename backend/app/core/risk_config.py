@@ -120,12 +120,12 @@ DEFAULT_RISK_CONFIG: dict[str, dict[str, Any]] = {
     # ── R：修复加分（整改完成率联动，R ≤ D 约束）──
     "reduction_pct_per_task": {
         "value": 0.15, "type": "float",
-        "description": "每个完成的整改任务降低风险比例",
+        "description": "[已废弃] V4 §3.2 方案 B 起整改率改为权重比口径（已验证权重÷可整改权重，见 compliance_adjustment.PRIORITY_WEIGHTS），本键不再被引擎读取，仅为历史兼容保留",
         "source": "系统既有合规调整规则（compute_compliance_adjusted_risk）",
     },
     "reduction_pct_max": {
         "value": 0.80, "type": "float",
-        "description": "修复加分上限：最多降低 80% 风险（R ≤ D 约束）",
+        "description": "[已废弃] V4 §3.2 方案 B 起整改率为比值口径（天然 ≤100%），80% 上限已废除（Q4），本键不再被引擎读取，仅为历史兼容保留",
         "source": "系统既有合规调整规则；说明书修正公式缺陷 4（R = D × min(0.80, 0.15×completed)）",
     },
 

@@ -136,5 +136,10 @@ calc_id = SHA-256( 规范JSON{ rule_ids, graph_sha256, context, on_date, engine_
 ## 八、本地验证记录（2026-09-12）
 
 - 新增测试 46 个全部通过（`test_rule_governance.py` 15 个 + `test_deemed_deduction.py` 31 个）；
-- 全量回归 `pytest tests`：**484 passed, 8 skipped, 0 failed**（skip 为需真实 PostgreSQL 的用例）；
+- 当时全量回归 `pytest tests`：484 passed, 8 skipped, 0 failed（skip 为需真实 PostgreSQL 的用例）；
 - 覆盖率：compliance_checker 100% / tax_risk_engine 98%。
+
+> **口径更新（2026-09-19，审计 #15）**：484 为当时含心理画像等已删模块测试的历史数字。
+> 截至 2026-09-19 实测全量（含 zen-engine 模块与方案 B 权重比整改率、审计证据链、
+> 否决档新增用例）：**414 passed, 8 skipped, 0 failed**。
+> 统计口径：`pytest tests`（补装 zen-engine 后全量运行，无 --ignore）。

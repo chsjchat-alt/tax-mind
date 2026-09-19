@@ -116,7 +116,9 @@ Authorization: Bearer <access_token>
 7. [整改追踪（Remediation）🔐 admin](#6-整改追踪)
 8. [报告生成（Reports）🔐 viewer](#7-报告生成)
 9. [AI 助手（AI Assistant）🔐 viewer](#8-ai-助手)
-10. [健康检查（公开）](#9-健康检查)
+10. [核定扣除计算（Deemed Deduction）🔐 viewer](#9-核定扣除计算)
+11. [参数配置（Risk Config）🔐 admin](#10-参数配置)
+12. [健康检查（公开）](#11-健康检查)
 
 ---
 
@@ -724,6 +726,27 @@ PUT /api/v1/remediation-tasks/{task_id}
 GET /api/v1/remediation-tasks/{task_id}
 ```
 
+### 6.5 人工验证确认（V4 §3.2）🔐 admin/auditor
+
+```http
+POST /api/v1/remediation-tasks/{task_id}/verify
+```
+
+整改率分子「已验证整改项」的认定入口：任务标记完成后，须经 admin 或
+auditor 人工确认（单确认 + 备注留痕）其权重才计入整改率。
+
+**请求体 — `RemediationTaskVerify`：**
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `note` | string | 否 | 验证确认备注（整改证据说明，留痕可回溯，≤2000 字） |
+
+**口径约束：**
+
+- 仅 `status=completed` 的任务可验证，否则返回 `40001`；
+- 重复验证 → 更新验证人与备注（纠正留痕，幂等）；
+- 任务被重置为非完成状态时，验证自动失效（清除 verified_by/at/note）。
+
 ---
 
 ## 7. 报告生成
@@ -824,7 +847,82 @@ POST /api/v1/ai/polish-report
 
 ---
 
-## 9. 健康检查（公开，无需认证）
+## 9. 核定扣除计算
+
+> **UI 状态：预留接口**（后端能力已备，前端页面二期接入，见附录 D）
+
+乳业农产品核定扣除端到端计算（V4 §4.2）：路径判定 →『鲜奶』范围 →
+单耗标准 → 扣除率路由（zen 决策图）→ Decimal 金额。自动路由成功时将
+`calc_id` 与参数快照写入审计日志（证据链落库）。
+
+### 9.1 执行核定扣除计算 🔐 viewer
+
+```http
+POST /api/v1/deemed-deduction/calculate
+```
+
+**请求体 — `DeemedCalcPayload`（数值字段以字符串承载，保 Decimal 精度）：**
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `entity_is_pilot` | boolean | 否 | 是否核定扣除试点主体（默认 true） |
+| `product_kind` | string | 否 | `uht`（灭菌乳）/ `pasteurized`（巴氏杀菌乳） |
+| `animal` | string | 否 | 原料奶来源：`cow` / `goat` |
+| `high_protein` | boolean | 否 | 是否高蛋白产品（单耗标准分档） |
+| `sales_quantity` | string | ✅ | 当期销售货物数量（吨），数字字符串，须为正 |
+| `avg_purchase_price` | string | ✅ | 购进农产品平均单价（万元/吨），数字字符串，须为正 |
+| `product_name` | string | 否 | 产品名称（『鲜奶』范围判定；缺失 → 转人工） |
+| `voucher_type` | string | 否 | 非试点路径凭证类型（白名单外 → 转人工） |
+
+**响应 `data`：**
+
+```json
+{
+  "is_auto": true,
+  "result": {
+    "route": "auto",
+    "input_vat": "3.53",
+    "calc_id": "26fd7ab7…（SHA-256，同输入重算一致）",
+    "rule_ids": ["VAT-INPUT-DEEMED-001"],
+    "params_snapshot": {"context": "..."},
+    "formula": "…"
+  }
+}
+```
+
+**口径约束：**
+
+- `route=manual` 时不产出 `calc_id` 与金额，并给出转人工原因（禁止默认套用）；
+- 非法/非正数值返回 `40001`。
+
+---
+
+## 10. 参数配置
+
+> **UI 状态：预留接口**（参数治理面向管理员，配置页面二期接入，见附录 D）
+
+### 10.1 获取全部参数 🔐 viewer
+
+```http
+GET /api/v1/risk-config
+```
+
+返回全部评分/阈值参数（含权威来源标注，多源互证）。
+
+### 10.2 更新参数 🔐 admin
+
+```http
+PUT /api/v1/risk-config
+```
+
+**请求体：** `{ "config_key": new_value }`，仅接受已注册的参数键，未知键返回 `40001`；更新后风险扫描缓存全量失效。
+
+> 注：`reduction_pct_per_task` / `reduction_pct_max` 两键自 V4 §3.2 方案 B
+> （权重比整改率）起不再被引擎读取，仅为历史兼容保留。
+
+---
+
+## 11. 健康检查（公开，无需认证）
 
 ```http
 GET /health
@@ -864,6 +962,22 @@ OK
 | 全局 | 10 req/s | 20 |
 | `/api/` | 5 req/s | 10 |
 | 登录/认证 | 1 req/s | 3 |
+
+## 附录 D：端点 UI 接入状态（审计 #14）
+
+后端已实现但**前端页面尚未接入**的端点清单（属"能力已备、UI 预留"，非断链）：
+
+| 端点 | UI 状态 | 说明 |
+|------|---------|------|
+| `POST /api/v1/auth/register` | 预留 | 管理员后台开户流程二期接入 |
+| `GET /api/v1/auth/me` | 预留 | 个人中心页二期接入 |
+| `POST /api/v1/ai/chat` | 二期 | AI 对话界面（V4 一期不承诺对话 UI） |
+| `POST /api/v1/ai/polish-report` | 二期 | 报告润色入口（V4 一期不承诺润色 UI） |
+| `GET /enterprises/{id}/financial-statements` | 预留 | 财报导入向导二期接入 |
+| `GET/PUT /api/v1/risk-config` | 预留 | 参数治理配置页二期接入（见 §10） |
+| `POST /api/v1/deemed-deduction/calculate` | 预留 | 核定扣除工作台二期接入（见 §9） |
+
+其余端点均已被前端页面调用（前后端 API 面一致性经脚本核对）。
 
 ---
 

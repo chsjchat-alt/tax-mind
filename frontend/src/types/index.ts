@@ -423,6 +423,12 @@ export interface RemediationTask {
   compliance_tags?: string[];
   /** 效果反馈备注 */
   feedback_notes?: string;
+  /** 人工验证确认人用户ID（V4 §3.2 整改率分子认定依据） */
+  verified_by?: string | null;
+  /** 人工验证确认时间（非空 = 已验证，计入整改率分子） */
+  verified_at?: string | null;
+  /** 验证确认备注（证据留痕） */
+  verify_note?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -501,6 +507,12 @@ export interface ComplianceAdjustedRisk {
   /** 是否触发一票否决（直接判 DISQUALIFIED，不参与等级映射） */
   is_disqualified?: boolean;
   completion_count: number;
+  /** 已验证合规任务数（整改率分子计数，V4 §3.2 方案 B） */
+  verified_count?: number;
+  /** 已验证整改项权重和（整改率分子） */
+  remediated_weight?: number;
+  /** 可整改项权重和（整改率分母） */
+  total_weight?: number;
   is_fully_compliant: boolean;
   reduction_pct: number;
 }
