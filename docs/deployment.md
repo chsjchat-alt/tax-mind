@@ -51,7 +51,7 @@ cd taxmind
 ### 2.2 配置环境变量
 
 ```bash
-# 复制环境变量模板
+# 复制环境变量模板（根目录，供 docker compose 读取）
 cp .env.example .env
 ```
 
@@ -60,6 +60,13 @@ cp .env.example .env
 ```ini
 # 数据库密码（生产环境务必更换）
 POSTGRES_PASSWORD=your_strong_password_here
+
+# 启动强制项（缺失/占位符/非法均拒绝启动）
+# 生成：openssl rand -hex 32（≥32 字符）
+JWT_SECRET_KEY=your_random_64_hex_chars
+# 生成：python -c "import base64,os; print(base64.b64encode(os.urandom(32)).decode())"
+# （AES-256-GCM 标准 Base64；勿用 Fernet.generate_key()，与本实现不兼容）
+ENCRYPTION_KEY=your_standard_base64_of_32_random_bytes=
 
 # 大模型 API Key（原型阶段可不填，系统降级为 Mock）
 DEEPSEEK_API_KEY=sk-xxxxxxxx
@@ -108,6 +115,10 @@ docker compose down -v
 | `POSTGRES_DB` | `taxmind` | 数据库名称 |
 | `POSTGRES_USER` | `taxmind` | 数据库用户 |
 | `POSTGRES_PASSWORD` | `taxmind123` | 数据库密码（**生产必须修改**） |
+| `JWT_SECRET_KEY` | — | **启动强制项**（≥32 字符）。生成：`openssl rand -hex 32`（缺失/占位符拒绝启动） |
+| `ENCRYPTION_KEY` | — | **启动强制项**。32 字节密钥的标准 Base64，生成：`python -c "import base64,os; print(base64.b64encode(os.urandom(32)).decode())"`（勿用 Fernet 命令） |
+
+> 以上变量写入项目根目录 `.env` 文件（模板见根目录 `.env.example`；后端本地开发用 `backend/.env.example`）。
 
 ### 3.2 后端配置
 
@@ -117,6 +128,7 @@ docker compose down -v
 | `APP_NAME` | `蒙牛全产业链 AI 内生合规决策大脑` | 应用标识 |
 | `APP_VERSION` | `0.3.0` | 版本号 |
 | `DEBUG` | `false` | 生产环境必须 `false` |
+| `DB_SSL_MODE` | 开发 `disable` / 生产 `require` | 开发环境 postgres 容器未开 SSL 必须禁用；生产叠加 prod 覆盖文件后自动为 `require` |
 | `DB_POOL_SIZE` | `20` | 数据库连接池大小 |
 | `DB_MAX_OVERFLOW` | `10` | 连接池溢出上限 |
 | `LLM_PROVIDER` | `deepseek` | 大模型提供商（`deepseek` / `qwen`） |
@@ -147,11 +159,11 @@ DATABASE_URL=postgresql+asyncpg://taxmind:taxmind123@localhost:5432/taxmind
  ┌──────────────────────────────────────────────────────┐
  │                    Internet                          │
  │                      │                               │
- │              :80 / :443 (TLS 1.3)                    │
+ │              :80（开发）/ :80+:443 TLS 1.3（生产） │
  │                      │                               │
  │  ┌───────────────────▼──────────────────────────┐   │
  │  │  frontend (Nginx + React SPA)                │   │
- │  │  - TLS 终结                                  │   │
+ │  │  - 生产叠加 prod 覆盖后启用 TLS 终结         │   │
  │  │  - /api/* → backend:8000                     │   │
  │  │  - DDoS Rate Limiting (10 req/s)             │   │
  │  │  - Security Headers (HSTS, CSP, XSS)         │   │
@@ -251,13 +263,13 @@ docker compose exec postgres psql -U taxmind -d taxmind -c \
 ### 6.1 健康检查端点
 
 ```bash
-# 前端 Nginx
+# 前端 Nginx（80 端口）
 curl http://localhost/health
 # → OK
 
-# 后端 API
-curl http://localhost/api/v1/health
-# → {"code": 200, "message": "success", "data": {"status": "ok", "version": "0.3.0"}}
+# 后端 API（经 Nginx 代理；健康路由挂载于应用根路径，不在 /api/v1 前缀下）
+docker compose exec backend python -c "import httpx; print(httpx.get('http://localhost:8000/health').text)"
+# → {"status": "ok", ...}
 
 # 前端 SPA
 curl -I http://localhost/
@@ -293,11 +305,13 @@ Docker Compose 已配置 `healthcheck`，可通过 `docker compose ps` 查看：
 ```bash
 docker compose ps
 # 正常输出：
-# NAME           STATUS
-# taxmind-db     Up (healthy)
-# taxmind-api    Up (healthy)
-# taxmind-web    Up (healthy)
+# NAME                          STATUS
+# taxmind-db                    Up (healthy)
+# <project>-backend-1           Up (healthy)
+# taxmind-web                   Up (healthy)
 ```
+
+> 注：backend 未设置固定容器名（多副本场景下容器名必须唯一），名称形如 `<项目名>-backend-<序号>`。
 
 健康检查不通过时服务不会启动（`depends_on` 设置了 `condition: service_healthy`）。
 
@@ -308,14 +322,15 @@ docker compose ps
 部署到生产环境前请逐项确认：
 
 - [ ] **数据库密码**：已修改为强密码（`POSTGRES_PASSWORD`）
-- [ ] **TLS 证书**：
+- [ ] **启动密钥**：`JWT_SECRET_KEY` / `ENCRYPTION_KEY` 已在根目录 `.env` 中设置为强随机值（缺失则 compose 拒绝启动）
+- [ ] **TLS 证书**（生产叠加 `docker-compose.prod.yml` 时）：
   ```bash
-  # 使用 Let's Encrypt 签发免费证书
-  docker compose run --rm certbot certonly --webroot \
-    -w /var/www/certbot -d your-domain.com
-  # 替换 frontend/nginx.conf 中 ssl_certificate 路径
+  # 使用 Let's Encrypt 签发免费证书，放入 ./certs/web/
+  #   fullchain.pem / privkey.pem（可选 dhparam.pem）
+  certbot certonly --webroot -w /var/www/certbot -d your-domain.com
+  # 证书路径已在 frontend/nginx.prod.conf 中配置（生产覆盖文件自动挂载）
   ```
-- [ ] **TLS 禁用 1.0/1.1**：`nginx.conf` 已配置仅 `TLSv1.2 TLSv1.3`
+- [ ] **TLS 禁用 1.0/1.1**：`nginx.prod.conf` 已配置仅 `TLSv1.2 TLSv1.3`
 - [ ] **多副本**：`docker-compose.yml` 中 `backend.deploy.replicas: 2`
 - [ ] **DDoS 限流**：Nginx 已配置 （10 req/s 全局 + 5 req/s API + 1 req/s 敏感接口）
 - [ ] **安全头**：HSTS (`max-age=63072000`)、CSP、X-Frame-Options、Referrer-Policy 已就绪

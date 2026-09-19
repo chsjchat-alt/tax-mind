@@ -105,6 +105,19 @@ class TestComputeComplianceAdjustedRisk:
         assert result["is_fully_compliant"] is False
         assert result["adjusted_score"] == 70.0        # 一票否决 → 修复加分不计，保持原始分
         assert result["adjusted_level"] == "high"      # 70 分 → high
+        # V4 §3.2 评分定义卡：否决条件为真 → 最终状态直接判 DISQUALIFIED，不参与等级映射
+        assert result["is_disqualified"] is True
+        assert result["final_status"] == "DISQUALIFIED"
+
+    async def test_final_status_follows_adjusted_level_without_veto(self):
+        """未触发否决 → 最终状态 = 五档等级映射(调整后分)，is_disqualified=False"""
+        result = await compute_compliance_adjusted_risk(
+            _base_db(completed_count=3),
+            "e1", base_score=80.0, compliance_findings_count=3,
+        )
+        assert result["veto_reason"] is None
+        assert result["is_disqualified"] is False
+        assert result["final_status"] == result["adjusted_level"] == "medium"
 
     async def test_remediation_reduction(self):
         """整改降分：3 个任务 → reduction 0.45 → 80*0.55=44 → medium"""
@@ -177,6 +190,25 @@ class TestBatchMatchesSingle:
         for key in (
             "original_score", "original_level",
             "adjusted_score", "adjusted_level",
+            "final_status", "is_disqualified",
             "completion_count", "is_fully_compliant", "reduction_pct",
         ):
             assert single[key] == batch_e1[key], f"批量/单条口径分歧字段: {key}"
+
+    async def test_batch_veto_marks_disqualified(self):
+        """批量版同样遵守 V4 §3.2：D 级企业 → final_status=DISQUALIFIED"""
+        batch_db = _FakeDB([
+            _FakeResult(rows=[_make_enterprise(credit_level="D")]),  # Enterprise.in_
+            _FakeResult(rows=[]),                                     # risk_config
+            _FakeResult(rows=[("e1", 2)]),                            # group_by 计数
+        ])
+        batch = await compute_compliance_adjusted_risks(
+            batch_db, ["e1"],
+            compliance_findings_counts={"e1": 0},
+            base_scores={"e1": 70.0},
+        )
+        e1 = batch["e1"]
+        assert e1["veto_reason"] is not None
+        assert e1["is_disqualified"] is True
+        assert e1["final_status"] == "DISQUALIFIED"
+        assert e1["adjusted_score"] == 70.0  # 否决 → 整改加分不计

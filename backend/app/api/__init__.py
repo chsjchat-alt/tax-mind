@@ -19,6 +19,7 @@ from app.api.ai_assistant import router as ai_router
 from app.api.auth import router as auth_router
 from app.api.upload import router as upload_router
 from app.api.risk_config import router as risk_config_router
+from app.api.deemed_deduction import router as deemed_deduction_router
 
 # 聚合根路由：新增业务域时只需在此追加一行
 api_router = APIRouter()
@@ -34,6 +35,7 @@ for _router in (
     reports_router,
     upload_router,
     risk_config_router,
+    deemed_deduction_router,
     ai_router,
 ):
     api_router.include_router(_router)

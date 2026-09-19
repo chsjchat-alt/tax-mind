@@ -168,6 +168,8 @@ function Reports() {
             const origScore = Math.round(adj.original_score ?? risk.score ?? 0);
             const adjScore = Math.round(adj.adjusted_score);
             const adjLevel = adj.adjusted_level as RiskLevel;
+            // V4 §3.2：一票否决 → 最终状态直接判 DISQUALIFIED（兼容旧载荷：无新字段时以 veto_reason 推断）
+            const isDQ = adj.is_disqualified ?? Boolean(adj.veto_reason);
             const delta = origScore - adjScore;
             const hasDelta = delta !== 0;
             return (
@@ -176,16 +178,19 @@ function Reports() {
                 className="rounded-xl"
                 size="small"
                 extra={
-                  adj.is_fully_compliant
-                    ? <Tag color="green">完全合规</Tag>
-                    : <Tag color={adj.veto_reason ? 'red' : 'blue'}>
-                        已完成 {adj.completion_count} 项合规整改
-                      </Tag>
+                  isDQ
+                    ? <Tag color="red">最终状态：DISQUALIFIED（不合格）</Tag>
+                    : adj.is_fully_compliant
+                      ? <Tag color="green">完全合规</Tag>
+                      : <Tag color="blue">
+                          已完成 {adj.completion_count} 项合规整改
+                        </Tag>
                 }
               >
                 {adj.veto_reason && (
                   <div className="mb-3 text-xs text-red-500">
-                    一票否决：{adj.veto_reason}（修复加分不计，整改不降分）
+                    一票否决：{adj.veto_reason}（修复加分不计，整改不降分；
+                    最终状态直接判 DISQUALIFIED，不参与五档等级映射）
                   </div>
                 )}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">

@@ -68,7 +68,10 @@ def get_settings() -> Settings:
 
 
 def _validate_settings(settings: Settings) -> None:
-    """启动时校验关键安全配置，缺失则拒绝启动"""
+    """启动时校验关键安全配置，缺失或非法则拒绝启动"""
+    import base64
+    import binascii
+
     missing = []
     if not settings.database_url:
         missing.append("DATABASE_URL")
@@ -80,6 +83,39 @@ def _validate_settings(settings: Settings) -> None:
         raise RuntimeError(
             f"缺少必要的环境变量，服务拒绝启动: {', '.join(missing)}。"
             f"请在 .env 文件或环境变量中设置。"
+        )
+
+    # ── 占位符守卫：.env.example 中的占位值未被替换则拒绝启动 ──
+    for name, value in (
+        ("JWT_SECRET_KEY", settings.jwt_secret_key),
+        ("ENCRYPTION_KEY", settings.encryption_key),
+    ):
+        if "replace-me" in value.lower() or "please-run" in value.lower():
+            raise RuntimeError(
+                f"{name} 仍为模板占位符，服务拒绝启动。"
+                f"请生成真实密钥后替换（参见 .env.example 中的生成命令）。"
+            )
+
+    # ── JWT 密钥强度：HS256 签名密钥至少 32 字符 ──
+    if len(settings.jwt_secret_key) < 32:
+        raise RuntimeError(
+            f"JWT_SECRET_KEY 长度不足（{len(settings.jwt_secret_key)} 字符，要求 ≥ 32）。"
+            f"生成命令: openssl rand -hex 32"
+        )
+
+    # ── ENCRYPTION_KEY 合法性：必须是 32 字节密钥的标准 Base64 编码 ──
+    #    加密实现为 AES-256-GCM（app/core/encryption.py，标准 base64 解码），
+    #    注意 Fernet.generate_key() 生成的是 URL-safe Base64（含 - / _），
+    #    与本实现不兼容 —— 请勿使用 Fernet 命令生成。
+    try:
+        key_bytes = base64.b64decode(settings.encryption_key, validate=True)
+        if len(key_bytes) != 32:
+            raise ValueError(f"解码后 {len(key_bytes)} 字节")
+    except (binascii.Error, ValueError) as e:
+        raise RuntimeError(
+            f"ENCRYPTION_KEY 非法（{e}）：必须是 32 字节密钥的标准 Base64 编码"
+            f"（44 字符，以 = 结尾）。"
+            f"生成命令: python -c \"import base64,os; print(base64.b64encode(os.urandom(32)).decode())\""
         )
 
     # ── URL 归一化：托管平台（Railway/Render/Neon 等）默认给出

@@ -496,6 +496,10 @@ export interface ComplianceAdjustedRisk {
   original_level?: RiskLevel;
   adjusted_score: number;
   adjusted_level: RiskLevel;
+  /** 最终状态（V4 §3.2）：一票否决时为 "DISQUALIFIED"，否则等于 adjusted_level */
+  final_status?: string;
+  /** 是否触发一票否决（直接判 DISQUALIFIED，不参与等级映射） */
+  is_disqualified?: boolean;
   completion_count: number;
   is_fully_compliant: boolean;
   reduction_pct: number;

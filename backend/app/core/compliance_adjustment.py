@@ -115,6 +115,8 @@ async def compute_compliance_adjusted_risk(
             "original_level": str,        # 原始风险等级 (frontend RiskLevel)
             "adjusted_score": float,      # 调整后评分 (0-100)
             "adjusted_level": str,        # 调整后等级 (frontend RiskLevel)
+            "final_status": str,          # 最终状态：DISQUALIFIED 或五档等级映射结果（V4 §3.2）
+            "is_disqualified": bool,      # 是否触发一票否决（直接判 DISQUALIFIED，不参与等级映射）
             "completion_count": int,      # 已完成合规任务数
             "is_fully_compliant": bool,   # 是否完全合规
             "reduction_pct": float,        # 风险降低百分比
@@ -204,6 +206,13 @@ async def compute_compliance_adjusted_risk(
         score_to_level(raw_score, thresholds), raw_score, thresholds
     )
 
+    # 6. 最终状态（V4 §3.2 评分公式）：
+    #    若否决条件为真 → 最终状态 = DISQUALIFIED（直接判级，不参与五档等级映射）；
+    #    否则 → 最终状态 = 五档等级映射(调整后分)。
+    #    adjusted_score / adjusted_level 仍按双状态口径展示（否决时调整后分=原始分）。
+    is_disqualified = veto_reason is not None
+    final_status = "DISQUALIFIED" if is_disqualified else adjusted_level
+
     _logger.info(
         "合规调整 | enterprise=%s | base=%.1f | completed=%d | reduction=%.0f%% | adjusted=%.1f (%s) | fully_compliant=%s | veto=%s",
         enterprise_id[:8], raw_score, completion_count,
@@ -216,6 +225,8 @@ async def compute_compliance_adjusted_risk(
         "original_level": original_level,
         "adjusted_score": round(adjusted_score, 2),
         "adjusted_level": adjusted_level,
+        "final_status": final_status,
+        "is_disqualified": is_disqualified,
         "completion_count": completion_count,
         "is_fully_compliant": is_fully_compliant,
         "reduction_pct": round(reduction_pct, 4),
@@ -236,8 +247,9 @@ async def compute_compliance_adjusted_risks(
 
     Returns:
         {enterprise_id: {"original_score", "original_level", "adjusted_score",
-                         "adjusted_level", "completion_count",
-                         "is_fully_compliant", "reduction_pct"}}
+                         "adjusted_level", "final_status", "is_disqualified",
+                         "completion_count", "is_fully_compliant",
+                         "reduction_pct", "veto_reason"}}
     """
     if not enterprise_ids:
         return {}
@@ -301,15 +313,20 @@ async def compute_compliance_adjusted_risks(
             if is_fully_compliant
             else score_to_level(adjusted_score, thresholds)
         )
+        adjusted_level = level_to_frontend(
+            adjusted_level_enum, adjusted_score, thresholds
+        )
+        # 最终状态（V4 §3.2）：否决 → DISQUALIFIED（直接判级，不参与等级映射）
+        is_disqualified = veto_reason is not None
         adjusted[eid] = {
             "original_score": round(raw_score, 2),
             "original_level": level_to_frontend(
                 score_to_level(raw_score, thresholds), raw_score, thresholds
             ),
             "adjusted_score": round(adjusted_score, 2),
-            "adjusted_level": level_to_frontend(
-                adjusted_level_enum, adjusted_score, thresholds
-            ),
+            "adjusted_level": adjusted_level,
+            "final_status": "DISQUALIFIED" if is_disqualified else adjusted_level,
+            "is_disqualified": is_disqualified,
             "completion_count": completion_count,
             "is_fully_compliant": is_fully_compliant,
             "reduction_pct": round(reduction_pct, 4),

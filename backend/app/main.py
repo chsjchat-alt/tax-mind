@@ -162,7 +162,22 @@ async def log_requests(request: Request, call_next):
             "request_body": request_body,
             "response_summary": response_summary,
         }
+        # ── 审计证据链（V4 §二）：请求内挂载的确定性计算证据并入审计行 ──
+        # 首条证据写入本请求的审计行；多条时其余生成独立 CALC 行（均可回溯）。
+        from app.services.audit_evidence import take_calc_evidence
+        calc_evidence = take_calc_evidence(request)
+        if calc_evidence:
+            log_entry["calculation_id"] = calc_evidence[0]["calculation_id"]
+            log_entry["param_snapshot"] = calc_evidence[0]["param_snapshot"]
+
         asyncio.create_task(_write_audit_log(log_entry))
+        for extra in calc_evidence[1:]:
+            asyncio.create_task(_write_audit_log({
+                **log_entry,
+                "method": "CALC",
+                "calculation_id": extra["calculation_id"],
+                "param_snapshot": extra["param_snapshot"],
+            }))
 
     return response
 

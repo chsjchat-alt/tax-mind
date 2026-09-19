@@ -83,17 +83,17 @@ services:
       timeout: 5s
       retries: 3
 
-  # ── Nginx 生产加固（TLS + Rate Limiting） ─────────
+  # ── Nginx 生产加固（TLS 终结 + Rate Limiting） ─────
   frontend:
-    environment:
-      - NGINX_ENABLE_TLS=true
-      - NGINX_RATE_LIMIT_ZONE="$$binary_remote_addr zone=api:10m rate=30r/m"
-    ports:
-      - "80:80"
-      - "443:443"
     volumes:
-      # TLS 证书
+      # TLS 版 Nginx 配置覆盖镜像内默认的 HTTP 版（见 frontend/nginx.prod.conf）
+      - ./frontend/nginx.prod.conf:/etc/nginx/conf.d/default.conf:ro
+      # TLS 证书（certbot 签发后放入 ./certs/web/：
+      #   fullchain.pem / privkey.pem，可选 dhparam.pem）
       - ./certs/web:/etc/nginx/ssl:ro
+    ports:
+      # 80 已在基础文件映射（用于 ACME 验证与 HTTP→HTTPS 跳转），此处追加 TLS 端口
+      - "443:443"
 
 # ── 持久化卷 ────────────────────────────────────────
 volumes:

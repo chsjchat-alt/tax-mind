@@ -1,6 +1,6 @@
-﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿# ══════════════════════════════════════════════════════════════════
-#  蒙牛全产业链 AI 内生合规决策大脑 — 生产级 Docker 编排栈
-#  等保2.0 三级 | TLS 1.3 | DDoS Rate Limiting | AES-256
+﻿# ══════════════════════════════════════════════════════════════════
+#  蒙牛全产业链 AI 内生合规决策大脑 — Docker 编排栈（开发/演示环境）
+#  生产环境叠加覆盖文件：docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 # ══════════════════════════════════════════════════════════════════
 
 services:
@@ -39,13 +39,21 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: taxmind-api
+    # 注：不设 container_name —— deploy.replicas 多副本场景下容器名必须唯一
     restart: unless-stopped
     environment:
       - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-taxmind}:${POSTGRES_PASSWORD:?err}@postgres:5432/${POSTGRES_DB:-taxmind}
+      # 启动强制项（config.py 启动校验，缺失/占位符/非法均拒绝启动）：
+      #   JWT_SECRET_KEY 生成：openssl rand -hex 32
+      #   ENCRYPTION_KEY 生成：python -c "import base64,os; print(base64.b64encode(os.urandom(32)).decode())"
+      #   （AES-256-GCM 标准Base64；勿用 Fernet.generate_key()——URL-safe Base64 与实现不兼容）
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:?err}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY:?err}
       - APP_NAME=蒙牛全产业链 AI 内生合规决策大脑
       - APP_VERSION=${APP_VERSION:-0.3.0}
       - DEBUG=false
+      # 开发环境 postgres 容器未启用 SSL，必须禁用（生产覆盖文件中改回 require）
+      - DB_SSL_MODE=disable
       - DB_POOL_SIZE=20
       - DB_MAX_OVERFLOW=10
       - LLM_PROVIDER=${LLM_PROVIDER:-deepseek}
@@ -61,7 +69,8 @@ services:
     expose:
       - "8000"
     healthcheck:
-      test: ["CMD-SHELL", "python -c \"import httpx; httpx.get('http://localhost:8000/api/v1/health').raise_for_status()\""]
+      # 健康路由挂载于应用根路径 /health（见 app/main.py），不在 /api/v1 前缀下
+      test: ["CMD-SHELL", "python -c \"import httpx; httpx.get('http://localhost:8000/health').raise_for_status()\""]
       interval: 15s
       timeout: 5s
       retries: 5
@@ -79,7 +88,8 @@ services:
     # 注: driver_opts encrypted 仅在 Docker Swarm overlay 网络生效
     # 生产环境建议启用 PostgreSQL sslmode=require 应用层加密
 
-  # ── Nginx 反代 + React 静态产物（TLS 终结） ──────────
+  # ── Nginx 反代 + React 静态产物 ──────────────────────
+  # 开发环境默认 HTTP（80）；TLS 终结由 docker-compose.prod.yml 叠加启用
   frontend:
     build:
       context: ./frontend
@@ -94,7 +104,6 @@ services:
     ports:
       # 公网入口（仅 Nginx 暴露）
       - "80:80"
-      - "443:443"
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost/health || exit 1"]
       interval: 15s
@@ -127,9 +136,3 @@ volumes:
     driver: local
   backup_data:
     driver: local
-
-# ══════════════════════════════════════════════════════════════════
-#  覆盖配置 (override file for production deployments)
-#  包含: DB 备份服务、TLS 证书、速率限制等
-#  用法: docker compose -f docker-compose.yml -f docker-compose.prod.yml up
-# ══════════════════════════════════════════════════════════════════
