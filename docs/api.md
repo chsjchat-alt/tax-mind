@@ -872,7 +872,20 @@ POST /api/v1/deemed-deduction/calculate
 | `sales_quantity` | string | ✅ | 当期销售货物数量（吨），数字字符串，须为正 |
 | `avg_purchase_price` | string | ✅ | 购进农产品平均单价（万元/吨），数字字符串，须为正 |
 | `product_name` | string | 否 | 产品名称（『鲜奶』范围判定；缺失 → 转人工） |
-| `voucher_type` | string | 否 | 非试点路径凭证类型（白名单外 → 转人工） |
+| `voucher_type` | string | 否 | 非试点路径凭证类型，取值见下方枚举表；白名单外 → 转人工 |
+
+**`voucher_type` 枚举（对应 2026 年第 10 号公告第五条第（二）项，SSOT 为
+`backend/app/core/deemed_deduction/fixtures/consumption_standards.json` 的 `invoice_path_cases`）：**
+
+| 取值 | 情形 | 扣除率口径 |
+|------|------|------------|
+| `general_vat_invoice_or_customs` | ①取得增值税专用发票 / 海关进口增值税专用缴款书 | 凭票面注明税额抵扣（引擎不代算，回传 `rate=null`） |
+| `small_scale_3pct_special_invoice` | ②简易计税 3% 征收率小规模纳税人开具的专票 | 发票注明金额 × 9% |
+| `sales_or_purchase_invoice` | ③取得（开具）农产品销售发票 / 收购发票 | 买价 × 9%（默认值） |
+| `coop_exempt_product` | ④从农民专业合作社购进的免税农产品 | 买价 × 9% |
+
+> 仅非试点主体（`entity_is_pilot=false`）使用本字段；试点主体一律走核定扣除路径，
+> 扣除率由产出货物适用税率决定，与本字段无关。传入上表之外的任意值 → 判定不确定 → `route=manual`。
 
 **响应 `data`：**
 

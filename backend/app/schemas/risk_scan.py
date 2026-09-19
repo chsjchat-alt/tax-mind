@@ -21,6 +21,10 @@ class RiskScanResponse(BaseModel):
     business_narrative: str
     technical_summary: dict
     assessment_date: datetime
+    # 货物流校验方式透明化（审计合规）：invoice_text_proxy / sensor_verified / manual_attachment
+    goods_flow_method: str = "invoice_text_proxy"
+    is_proxy_verification: bool = True
+    goods_flow_disclaimer: str = ""
 
 
 class RiskSnapshotResponse(BaseModel):
@@ -39,6 +43,10 @@ class RiskSnapshotResponse(BaseModel):
     business_narrative: str = ""
     technical_summary: dict = Field(default_factory=dict)
     assessment_date: datetime
+    # 货物流校验方式透明化（审计合规）
+    goods_flow_method: str = "invoice_text_proxy"
+    is_proxy_verification: bool = True
+    goods_flow_disclaimer: str = ""
 
 
 class RiskAssessmentResponse(BaseModel):

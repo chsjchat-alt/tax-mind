@@ -200,6 +200,9 @@ class RiskScanService:
     ) -> dict:
         """从已落库的 RiskAssessment 构建完整快照（RiskSnapshotResponse 格式）"""
         risk_details = assessment.risk_details or {}
+        technical_summary = risk_details.get("technical_summary", {}) or {}
+        # 货物流校验方式：优先读技术摘要持久化快照，缺失时回退代理推断口径（历史数据兼容）
+        goods_flow = technical_summary.get("goods_flow", {}) or {}
         return {
             "risk_assessment_id": assessment.id,
             "enterprise_id": assessment.enterprise_id,
@@ -215,8 +218,11 @@ class RiskScanService:
             "match_details": risk_details.get("match_details", []),
             "recommendations": assessment.recommendations or {},
             "business_narrative": risk_details.get("business_narrative", ""),
-            "technical_summary": risk_details.get("technical_summary", {}),
+            "technical_summary": technical_summary,
             "assessment_date": assessment.assessment_date,
+            "goods_flow_method": goods_flow.get("method", "invoice_text_proxy"),
+            "is_proxy_verification": bool(goods_flow.get("is_proxy_verification", True)),
+            "goods_flow_disclaimer": goods_flow.get("disclaimer", ""),
         }
 
     @staticmethod

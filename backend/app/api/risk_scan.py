@@ -9,7 +9,7 @@ GET  /api/v1/risk-assessments/{id}                     获取风险评估详情
 import logging
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import (
@@ -126,6 +126,9 @@ async def perform_risk_scan(
         business_narrative=risk_result.business_narrative,
         technical_summary=risk_result.technical_summary,
         assessment_date=assessment.assessment_date,
+        goods_flow_method=ffm_result.goods_flow_method,
+        is_proxy_verification=ffm_result.is_proxy_verification,
+        goods_flow_disclaimer=ffm_result.goods_flow_disclaimer,
     ).model_dump()
 
     # 写入缓存
@@ -192,10 +195,12 @@ async def get_risk_assessment_detail(
         db, str(assessment_id)
     )
 
+    # 租户隔离校验：先于存在性判定，避免通过 40001/403 差异探测他租户评估是否存在
     if not assessment:
-        return error_response(40001, f"风险评估不存在: {assessment_id}")
-
-    # 租户隔离校验：评估所属企业必须属于当前用户租户
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"风险评估不存在或无权访问: {assessment_id}",
+        )
     await get_enterprise_or_403(str(assessment.enterprise_id), current_user, db)
 
     return success_response(

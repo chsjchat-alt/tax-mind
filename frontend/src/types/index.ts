@@ -111,7 +111,23 @@ export interface RiskScanResult {
   /** 5 维引擎返回结构化 dict；旧引擎兼容字符串 */
   technical_summary: string | Record<string, unknown>;
   assessment_date: string;
+  /** 货物流校验方式：invoice_text_proxy（发票品名文本代理）| sensor_verified | manual_attachment */
+  goods_flow_method?: GoodsFlowMethod;
+  /** 是否为代理校验（true 时前端须透出「代理校验中」标识与免责说明） */
+  is_proxy_verification?: boolean;
+  /** 货物流代理校验免责说明（面向审计人员的口径披露） */
+  goods_flow_disclaimer?: string;
 }
+
+/** 货物流校验方式枚举（与后端 four_flow_match.py 常量一致） */
+export type GoodsFlowMethod = 'invoice_text_proxy' | 'sensor_verified' | 'manual_attachment';
+
+/** 货物流校验方式的中文展示标签 */
+export const GOODS_FLOW_METHOD_LABELS: Record<GoodsFlowMethod, string> = {
+  invoice_text_proxy: '发票文本代理校验',
+  sensor_verified: '物流传感数据核验',
+  manual_attachment: '人工单据核验',
+};
 
 /** 四流匹配明细（后端 match_details，逐合同/发票的匹配状态与差异） */
 export interface MatchDetailItem {

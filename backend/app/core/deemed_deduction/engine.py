@@ -37,7 +37,6 @@ from app.core.rule_governance import (
 _STANDARDS_PATH = Path(__file__).parent / "fixtures" / "consumption_standards.json"
 
 # ── 精确小数常量（金额计算禁用 float） ──
-RATE_09 = Decimal("0.09")
 ONE = Decimal("1")
 _CENT = Decimal("0.01")
 

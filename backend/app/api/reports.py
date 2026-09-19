@@ -20,6 +20,10 @@ from app.models.risk_assessment import RiskAssessment
 from app.models.user import User
 from app.schemas.reports import ReportGenerateRequest
 from app.core.compliance_adjustment import compute_compliance_adjusted_risk
+from app.core.four_flow_match import (
+    GOODS_FLOW_DISCLAIMER,
+    GOODS_FLOW_METHOD_INVOICE_TEXT_PROXY,
+)
 from app.core.pdf_generator import generate_report_pdf
 
 router = APIRouter(tags=["报告生成"])
@@ -75,6 +79,14 @@ async def _build_report_content(
             "recommendations": latest_risk.recommendations or {},
             "date": latest_risk.assessment_date.isoformat()
                 if latest_risk.assessment_date else None,
+        }
+        # 货物流校验口径披露：优先取本次评估的技术摘要快照，缺失时按代理校验兜底
+        risk_details = latest_risk.risk_details or {}
+        goods_flow = (risk_details.get("technical_summary") or {}).get("goods_flow") or {}
+        report_content["goods_flow"] = {
+            "method": goods_flow.get("method", GOODS_FLOW_METHOD_INVOICE_TEXT_PROXY),
+            "is_proxy_verification": bool(goods_flow.get("is_proxy_verification", True)),
+            "disclaimer": goods_flow.get("disclaimer", GOODS_FLOW_DISCLAIMER),
         }
 
     risk_level_value = latest_risk.overall_risk_level.value if latest_risk and latest_risk.overall_risk_level else "low"

@@ -251,6 +251,18 @@ def generate_report_pdf(report_content: dict) -> bytes:
         pdf.key_value("私卡收款占比", f"{risk.get('private_card_ratio', 0) * 100:.2f}%")
         cost_dev = risk.get('cost_deviation', 0)
         pdf.key_value("成本费用偏离", f"{cost_dev:.1f} 个百分点")
+        # 货物流口径披露（审计合规）：明确该维度为文本代理推断，非真实物流核验
+        goods_flow = report_content.get("goods_flow") or {}
+        if goods_flow.get("is_proxy_verification", True):
+            pdf.ln(1)
+            pdf.body_text(
+                "口径说明：" + (
+                    _s(goods_flow.get("disclaimer"))
+                    or "四流匹配度中「货物流」维度为进销项发票品名文本代理校验，"
+                       "非真实物流数据核验，不作为稽查举证结论。"
+                ),
+                indent=True,
+            )
         pdf.ln(4)
 
         # ── 风险标记 ──

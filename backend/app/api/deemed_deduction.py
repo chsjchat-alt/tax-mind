@@ -49,8 +49,14 @@ class DeemedCalcPayload(BaseModel):
     )
     voucher_type: str = Field(
         "sales_or_purchase_invoice",
-        description="非试点路径凭证类型（sales_or_purchase_invoice / "
-        "purchase_invoice / special_deduction_invoice / coop_invoice）",
+        description="非试点路径凭证类型，取值须为本枚举之一（对应 2026年第10号公告第五条"
+        "第（二）项，见 fixtures/consumption_standards.json 的 invoice_path_cases）："
+        "①general_vat_invoice_or_customs（增值税专用发票/海关进口增值税专用缴款书，"
+        "凭票面注明税额抵扣，本引擎不代算）；"
+        "②small_scale_3pct_special_invoice（简易计税3%征收率小规模纳税人专票，发票注明金额×9%）；"
+        "③sales_or_purchase_invoice（农产品销售发票/收购发票，买价×9%）；"
+        "④coop_exempt_product（农民专业合作社免税农产品，买价×9%）。"
+        "传其他值 → 无法确定性判定 → route=manual 转人工（不默认套用 9%）",
     )
 
 

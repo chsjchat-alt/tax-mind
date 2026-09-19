@@ -28,6 +28,25 @@ WEIGHTS = {
     "product_match": 0.20,             # 进销项品名匹配（Jaccard 相似度）
 }
 
+# ── 货物流校验方式（枚举，替代裸 bool；未来接入地磅/冷链可平滑扩展） ──
+#   invoice_text_proxy : 以发票品名文本相似度代理推断（当前默认，非真实物流数据）
+#   sensor_verified    : 地磅 / 冷链物流传感器真实数据核验（尚未接入）
+#   manual_attachment  : 人工上传物流单据核验（尚未接入）
+GOODS_FLOW_METHOD_INVOICE_TEXT_PROXY = "invoice_text_proxy"
+GOODS_FLOW_METHOD_SENSOR_VERIFIED = "sensor_verified"
+GOODS_FLOW_METHOD_MANUAL_ATTACHMENT = "manual_attachment"
+
+# 当前系统实际采用的货物流校验方式（未接入真实物流数据源前恒为代理推断）
+ACTIVE_GOODS_FLOW_METHOD = GOODS_FLOW_METHOD_INVOICE_TEXT_PROXY
+
+# 面向审计人员的免责说明（随结果体透出，避免"精确匹配"误读）
+GOODS_FLOW_DISCLAIMER = (
+    "货物流维度为「发票品名文本代理校验」（invoice_text_proxy）："
+    "系统尚未接入地磅、冷链物流传感器或物流单据，该维度以进销项发票商品名称的"
+    "文本相似度间接推断，不构成对真实货物流转的核验结论。"
+    "涉及稽查举证时，须以物流单据、过磅记录等原始凭证为准。"
+)
+
 # 匹配阈值
 EXACT_MATCH_THRESHOLD = Decimal("0.02")    # 金额差异 ≤ 2% 视为完全匹配
 PARTIAL_MATCH_THRESHOLD = Decimal("0.10")  # 金额差异 ≤ 10% 视为部分匹配
@@ -51,6 +70,9 @@ class FourFlowMatchResult:
     risk_flags: list[str] = field(default_factory=list)  # 风险标记
     business_narrative: str = ""                    # 商业语言叙述
     technical_summary: dict[str, Any] = field(default_factory=dict)  # 技术语言摘要
+    goods_flow_method: str = GOODS_FLOW_METHOD_INVOICE_TEXT_PROXY  # 货物流校验方式（枚举）
+    is_proxy_verification: bool = True              # 是否为代理校验（= method != sensor_verified）
+    goods_flow_disclaimer: str = GOODS_FLOW_DISCLAIMER  # 审计免责说明
 
 
 @dataclass
@@ -190,6 +212,16 @@ def _calculate_product_jaccard(
     return len(intersection) / len(union)
 
 
+def _build_goods_flow_meta(result: "FourFlowMatchResult") -> dict:
+    """货物流校验方式元信息（审计透明度：前端/报告据此透出代理校验标识与免责说明）"""
+    return {
+        "method": result.goods_flow_method,
+        "is_proxy_verification": result.is_proxy_verification,
+        "disclaimer": result.goods_flow_disclaimer,
+        "weight": WEIGHTS["product_match"],
+    }
+
+
 def _generate_business_narrative(result: FourFlowMatchResult) -> str:
     """生成商业语言叙述"""
     score = result.overall_score
@@ -205,6 +237,11 @@ def _generate_business_narrative(result: FourFlowMatchResult) -> str:
         level = "高风险"
 
     parts = [f"您的企业四流匹配度为 {score:.0f} 分，状态为「{level}」。"]
+    if result.is_proxy_verification:
+        parts.append(
+            "【口径说明】其中「货物流」维度为发票品名文本代理校验，"
+            "非真实物流数据核验，请勿据此作为稽查举证结论。"
+        )
     if result.risk_flags:
         parts.append(f"系统发现 {len(result.risk_flags)} 个风险点：")
         for i, flag in enumerate(result.risk_flags[:5], 1):
@@ -295,6 +332,7 @@ def calculate_four_flow_match(
                 "contract_invoice": {"matched": 0, "total": 0},
                 "invoice_bank": {"matched": 0, "total": 0},
             },
+            "goods_flow": _build_goods_flow_meta(result),
         }
         return result
 
@@ -526,6 +564,7 @@ def calculate_four_flow_match(
         },
         "weights": WEIGHTS,
         "risk_flags_count": len(result.risk_flags),
+        "goods_flow": _build_goods_flow_meta(result),
     }
 
     return result

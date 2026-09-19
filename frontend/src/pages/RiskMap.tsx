@@ -10,7 +10,8 @@ import {
   RISK_COLORS, RISK_LABELS, AUDIT_PROBABILITY_CRITICAL,
   BUSINESS_MODEL_MAP, BUSINESS_MODEL_DESC,
 } from '@/types';
-import type { RiskLevel, BusinessModel, CostGaugeData, TaxBurdenElasticityData, ICRadarData, MatchDetailItem, RiskScoreTrajectory, ComplianceAdjustedRisk } from '@/types';
+import type { RiskLevel, BusinessModel, CostGaugeData, TaxBurdenElasticityData, ICRadarData, MatchDetailItem, RiskScoreTrajectory, ComplianceAdjustedRisk, GoodsFlowMethod } from '@/types';
+import { GOODS_FLOW_METHOD_LABELS } from '@/types';
 import type { Language } from '@/components/riskmap';
 
 // ═══════════════════════════════════════
@@ -293,6 +294,11 @@ function RiskMap() {
 
   // 四流匹配明细（后端 match_details）
   const matchDetails: MatchDetailItem[] = result.match_details ?? [];
+
+  // 货物流校验方式（后端 goods_flow_method 枚举；历史数据缺失时按代理校验口径兜底）
+  const isProxyVerification = result.is_proxy_verification ?? true;
+  const goodsFlowMethod: GoodsFlowMethod = result.goods_flow_method ?? 'invoice_text_proxy';
+  const goodsFlowDisclaimer = result.goods_flow_disclaimer ?? '';
 
   // 维度统计（五级分类）
   const dimEntries = Object.entries(dimension_scores);
@@ -869,6 +875,21 @@ function RiskMap() {
                 onChange={setOnlyUnmatched}
               />
             </div>
+            {/* 货物流代理校验口径披露（审计合规：避免被读作「四流全额精确匹配」） */}
+            {isProxyVerification && (
+              <div className="mb-4 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5">
+                <Tag color="warning" className="mt-0.5 shrink-0">货物流代理校验中</Tag>
+                <div className="text-xs leading-relaxed text-amber-800">
+                  <p className="font-semibold">
+                    校验方式：{GOODS_FLOW_METHOD_LABELS[goodsFlowMethod]}
+                  </p>
+                  <p className="mt-0.5">
+                    {goodsFlowDisclaimer ||
+                      '货物流维度以进销项发票商品名称文本相似度间接推断，非真实物流数据核验；稽查举证须以物流单据、过磅记录等原始凭证为准。'}
+                  </p>
+                </div>
+              </div>
+            )}
             <TableContainer>
               <Table<MatchDetailItem>
                 rowKey={(record, index) => `${record.contract_no ?? record.invoice_no ?? 'row'}-${index}`}

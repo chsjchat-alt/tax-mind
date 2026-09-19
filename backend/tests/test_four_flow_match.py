@@ -448,3 +448,51 @@ class TestMatchDetails:
         assert len(result.details) >= 2
         for d in result.details:
             assert d["match_status"] in ("matched", "unmatched")
+
+
+# ═══════════════════════════════════════════════════════════
+#  货物流校验方式披露（goods_flow_method 枚举，审计透明度）
+# ═══════════════════════════════════════════════════════════
+
+class TestGoodsFlowMethodDisclosure:
+    """货物流为发票品名文本代理校验，须以枚举字段向审计人员显式披露"""
+
+    def test_default_method_is_invoice_text_proxy(self, sample_contract,
+                                                  sample_invoice,
+                                                  sample_bank_transaction):
+        """默认识别为代理校验（当前未接入地磅/冷链真实数据）"""
+        result = calculate_four_flow_match(
+            [sample_contract], [sample_invoice], [sample_bank_transaction]
+        )
+        assert result.goods_flow_method == "invoice_text_proxy"
+        assert result.is_proxy_verification is True
+        assert "代理校验" in result.goods_flow_disclaimer
+
+    def test_technical_summary_carries_goods_flow_meta(self, sample_contract,
+                                                       sample_invoice,
+                                                       sample_bank_transaction):
+        """技术摘要 goods_flow 节点含 method / is_proxy_verification / disclaimer / weight"""
+        result = calculate_four_flow_match(
+            [sample_contract], [sample_invoice], [sample_bank_transaction]
+        )
+        meta = result.technical_summary["goods_flow"]
+        assert meta["method"] == "invoice_text_proxy"
+        assert meta["is_proxy_verification"] is True
+        assert meta["weight"] == 0.20
+        assert meta["disclaimer"]
+
+    def test_empty_input_branch_also_discloses(self):
+        """空输入分支（insufficient_data）同样透出货物流口径，不留缺口"""
+        result = calculate_four_flow_match([], [], [])
+        assert result.technical_summary["status"] == "insufficient_data"
+        assert result.technical_summary["goods_flow"]["method"] == "invoice_text_proxy"
+
+    def test_business_narrative_states_proxy_scope(self, sample_contract,
+                                                   sample_invoice,
+                                                   sample_bank_transaction):
+        """商业叙述（面向老板）须显式说明货物流为代理校验，避免误读为全额精确匹配"""
+        result = calculate_four_flow_match(
+            [sample_contract], [sample_invoice], [sample_bank_transaction]
+        )
+        assert "代理校验" in result.business_narrative
+        assert "非真实物流数据核验" in result.business_narrative
